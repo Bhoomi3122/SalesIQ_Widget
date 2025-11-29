@@ -1,80 +1,107 @@
 const axios = require('axios');
 
 /**
- * SHOPIFY SERVICE
+ * SHOPIFY SERVICE (PRODUCTION DEBUG EDITION)
  * ---------------------------------------------------
- * Handles all interactions with the Shopify Admin API.
- * Includes a "Safety Net" that returns mock data if API keys are missing.
+ * 1. Sanitizes URLs to prevent double slashes (common error).
+ * 2. Encodes emails (fixes issues with special chars).
+ * 3. Logs detailed API responses to the terminal for debugging.
  */
 
-const SHOPIFY_URL = process.env.SHOPIFY_STORE_URL; // e.g., "https://your-store.myshopify.com"
+// Strip trailing slashes from URL to avoid //admin/api errors
+const RAW_URL = process.env.SHOPIFY_STORE_URL || "";
+const SHOPIFY_URL = RAW_URL.replace(/\/$/, ""); 
 const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// Helper to check if we are in "Live Mode"
-const isLive = () => SHOPIFY_URL && ACCESS_TOKEN;
+const isLive = () => {
+    const hasKeys = SHOPIFY_URL && ACCESS_TOKEN;
+    if (!hasKeys) console.warn("⚠️ Shopify Service: Missing .env credentials.");
+    return hasKeys;
+};
 
 /**
  * 1. GET CUSTOMER ORDERS
- * Fetches the last 3 orders for a given email.
  */
 const getOrdersByEmail = async (email) => {
-    if (!isLive()) return getMockOrders(email);
+    if (!isLive()) return []; 
+
+    console.log(`[Shopify] Looking up email: ${email}`);
 
     try {
-        // Step A: Search for Customer ID by Email
-        const customerSearch = await axios.get(
-            `${SHOPIFY_URL}/admin/api/2023-10/customers/search.json?query=email:${email}`,
-            { headers: { 'X-Shopify-Access-Token': ACCESS_TOKEN } }
-        );
+        // Step A: Search for Customer
+        // URL Encode the email to handle '+' or special chars safely
+        const searchUrl = `${SHOPIFY_URL}/admin/api/2023-10/customers/search.json?query=email:${encodeURIComponent(email)}`;
+        
+        console.log(`[Shopify] GET ${searchUrl}`); // Debug URL
+
+        const customerSearch = await axios.get(searchUrl, { 
+            headers: { 'X-Shopify-Access-Token': ACCESS_TOKEN } 
+        });
 
         if (customerSearch.data.customers.length === 0) {
-            return []; // Customer not found
+            console.log(`[Shopify] ❌ Customer not found: ${email}`);
+            return []; 
         }
 
         const customerId = customerSearch.data.customers[0].id;
+        console.log(`[Shopify] ✅ Found Customer ID: ${customerId}`);
 
-        // Step B: Fetch Orders for that Customer
-        const orders = await axios.get(
-            `${SHOPIFY_URL}/admin/api/2023-10/customers/${customerId}/orders.json?status=any&limit=3`,
-            { headers: { 'X-Shopify-Access-Token': ACCESS_TOKEN } }
-        );
+        // Step B: Fetch Orders
+        const ordersUrl = `${SHOPIFY_URL}/admin/api/2023-10/customers/${customerId}/orders.json?status=any&limit=3`;
+        
+        const ordersResponse = await axios.get(ordersUrl, { 
+            headers: { 'X-Shopify-Access-Token': ACCESS_TOKEN } 
+        });
+        
+        const orders = ordersResponse.data.orders;
+        console.log(`[Shopify] 📦 Found ${orders.length} orders.`);
 
-        return orders.data.orders.map(order => ({
+        if (orders.length === 0) return [];
+
+        // Map to Widget Format
+        return orders.map(order => ({
             id: order.id,
-            name: order.name, // e.g. "#1001"
+            name: order.name,
             total: order.total_price,
             currency: order.currency,
-            status: order.fulfillment_status || "unfulfilled",
+            // Prioritize fulfillment status, fallback to financial status
+            status: order.fulfillment_status || (order.financial_status === 'paid' ? 'UNFULFILLED' : order.financial_status),
             payment_status: order.financial_status,
             date: order.created_at,
-            tracking_url: order.fulfillments?.[0]?.tracking_url || null,
             items: order.line_items.map(item => item.title).join(", ")
         }));
 
     } catch (error) {
-        console.error("Shopify API Error:", error.message);
-        return getMockOrders(email); // Fallback on error
+        // Log the specific API error message from Shopify
+        const errorMsg = error.response?.data?.errors || error.message;
+        console.error(`[Shopify] ❌ API Error:`, JSON.stringify(errorMsg));
+        return []; 
     }
 };
 
 /**
- * 2. SEARCH PRODUCTS (For Recommendations)
- * Finds products matching a keyword (e.g., "red shirt").
+ * 2. SEARCH PRODUCTS
  */
 const searchProducts = async (query) => {
-    if (!isLive()) return getMockProducts(query);
+    if (!isLive()) return [];
 
     try {
-        const response = await axios.get(
-            `${SHOPIFY_URL}/admin/api/2023-10/products.json`,
-            { headers: { 'X-Shopify-Access-Token': ACCESS_TOKEN } }
-        );
+        // Fetch products (Limit 5 to keep it fast)
+        const productsUrl = `${SHOPIFY_URL}/admin/api/2023-10/products.json?limit=5`;
+        
+        const response = await axios.get(productsUrl, { 
+            headers: { 'X-Shopify-Access-Token': ACCESS_TOKEN } 
+        });
 
-        // Simple client-side filter (Shopify search API is complex for hackathon)
         const allProducts = response.data.products;
+        
+        // Client-side filtering is more reliable for simple title matches
         const matches = allProducts.filter(p => 
-            p.title.toLowerCase().includes(query.toLowerCase())
+            p.title.toLowerCase().includes(query.toLowerCase()) || 
+            (p.tags && p.tags.includes(query))
         ).slice(0, 3);
+
+        console.log(`[Shopify] 🔍 Found ${matches.length} products for "${query}"`);
 
         return matches.map(p => ({
             id: p.id,
@@ -84,47 +111,9 @@ const searchProducts = async (query) => {
         }));
 
     } catch (error) {
-        console.error("Shopify Product Search Error:", error.message);
-        return getMockProducts(query);
+        console.error(`[Shopify] ❌ Product Search Error:`, error.message);
+        return [];
     }
-};
-
-/**
- * 3. MOCK DATA GENERATORS (The Safety Net)
- * Used when API keys are missing or API fails.
- */
-const getMockOrders = (email) => {
-    console.log(`⚠️ Using MOCK Shopify Data for: ${email}`);
-    return [
-        {
-            id: "mock_101",
-            name: "#1023",
-            total: "125.00",
-            currency: "USD",
-            status: "fulfilled",
-            payment_status: "paid",
-            date: new Date().toISOString(),
-            tracking_url: "https://fedex.com/track/123",
-            items: "Blue Denim Jacket, White Tee"
-        }
-    ];
-};
-
-const getMockProducts = (query) => {
-    return [
-        {
-            id: "mock_p1",
-            title: `Premium ${query} Item`,
-            price: "45.00",
-            image: "https://via.placeholder.com/150"
-        },
-        {
-            id: "mock_p2",
-            title: `${query} Accessory`,
-            price: "15.00",
-            image: "https://via.placeholder.com/150"
-        }
-    ];
 };
 
 module.exports = {
