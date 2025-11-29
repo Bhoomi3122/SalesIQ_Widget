@@ -44,7 +44,6 @@ const extractContext = (payload) => {
 router.post('/zoho-widget', async (req, res) => {
     const startTime = Date.now();
     
-    // Debugging Log
     console.log("📦 ZOHO RAW PAYLOAD:", JSON.stringify(req.body, null, 2)); 
 
     const { email, chatId, message } = extractContext(req.body);
@@ -66,35 +65,32 @@ router.post('/zoho-widget', async (req, res) => {
             
             console.log(`⚡ Executing Action: ${actionName}`);
 
-            // SPECIAL CASE: "Refresh" should NOT return a banner. 
-            // It should fall through to CASE 2 to re-render the widget.
+            // SPECIAL CASE: "Refresh" reloads the UI
             if (actionName === "refresh_widget") {
                 console.log("🔄 Refreshing Widget Data...");
-                // Do nothing here, let code flow down to "DETAIL HANDLER" logic
+                // Fall through to Detail Handler Logic below to re-render
             } 
-            // SPECIAL CASE: "Copy Text" (AI Suggestion)
+            // SPECIAL CASE: "Click to Insert" (Fix for plain text issue)
+            // We return type 'post_message' to insert text into operator chat
             else if (actionName === "handle_copy_text") {
                 return res.json({
                     type: "post_message",
-                    value: actionData.text // This puts text into operator's chat bar
+                    text: actionData.text // Changed from 'value' to 'text'
                 });
             }
-            // STANDARD ACTIONS (Refund, Cancel)
+            // LOGGING FOR DASHBOARD ACTIONS
             else {
-                const actionResult = await ecommerceManager.executeAction(actionName, actionData);
-
-                // Log action asynchronously
-                InteractionLog.create({
+                await InteractionLog.create({
                     chatId,
                     operatorEmail: req.body.operator?.email || "unknown",
                     actionType: actionName,
-                    details: { result: actionResult }
-                }).catch(err => console.error("Log Error:", err.message));
-
+                    details: { input: actionData }
+                });
+                
                 return res.json({
                     type: "banner",
-                    text: actionResult.message || "Action processed",
-                    status: actionResult.success ? "success" : "failure"
+                    text: "Action Logged",
+                    status: "success"
                 });
             }
         }
@@ -111,34 +107,29 @@ router.post('/zoho-widget', async (req, res) => {
             recommendationService.getRecommendationsForVisitor(email)
         ]);
 
-        // --- CALCULATION METRICS ---
         const liveOrderCount = orders ? orders.length : 0;
         const liveTotalSpend = orders ? orders.reduce((sum, ord) => sum + parseFloat(ord.total), 0) : 0;
 
         // --- SECTION 1: METRICS ---
-        const metricSection = ui.buildMetricSection("metrics", "CUSTOMER PROFILE", [
+        const metricSection = ui.buildMetricSection("metrics", "CUSTOMER VITALS", [
             { label: "Sentiment", value: cleanText(sentiment.label) },
-            { label: "Lifetime Value", value: `$${liveTotalSpend.toFixed(2)}` },
+            { label: "LTV", value: `$${liveTotalSpend.toFixed(2)}` },
             { label: "Total Orders", value: `${liveOrderCount}` }
         ]);
 
         // --- SECTION 2: ORDER HISTORY (LISTING) ---
-        // Changed from Fieldset to Listing to show multiple orders
+        // Showing ALL recent orders so operator has full context
         const orderItems = orders.map(order => ({
             title: `Order ${order.name}`,
-            text: `${order.date.substring(0, 10)} - ${order.status.toUpperCase()}`,
+            text: `${order.date.substring(0, 10)} | ${order.status.toUpperCase()}`,
             subtext: order.items || "No items",
             image_url: "https://img.icons8.com/ios-glyphs/60/000000/box.png",
-            actionPayload: { 
-                // In a full app, this would open order details. 
-                // For now, it copies ID to clipboard or just acts as a visual item.
-                text: `Order ID: ${order.name}` 
-            }
+            actionPayload: { text: `Order ID: ${order.name}` } // Clicking copies ID
         }));
         
         const orderSection = ui.buildListingSection(
             "order_history", 
-            "RECENT ORDERS", 
+            "RECENT ORDER HISTORY", 
             orderItems.length > 0 ? orderItems : [{ title: "No Orders", text: "Customer has no history", subtext: "" }]
         );
 
@@ -149,14 +140,10 @@ router.post('/zoho-widget', async (req, res) => {
             text: reply, 
             subtext: "Click to insert",
             image_url: replyIcon,
-            // Uses 'handle_copy_text' action we handled above
             actionPayload: { text: reply } 
         }));
-        // We override the action name in the builder manually for this specific section if needed,
-        // or ensure zohoUiBuilder maps 'handle_list_click' to our 'handle_copy_text' logic.
-        // *Hack*: We'll just catch 'handle_list_click' as a copy action if the payload has 'text'.
         
-        // Let's actually patch the action name dynamically:
+        // Force the action name to our specific handler
         aiItems.forEach(item => {
             if(item.action) item.action.name = "handle_copy_text";
         });
@@ -164,9 +151,7 @@ router.post('/zoho-widget', async (req, res) => {
         const aiSection = ui.buildListingSection("ai_replies", "AI SMART REPLIES", aiItems);
 
         // --- SECTION 4: RECOMMENDATIONS ---
-        // Filter: Don't show products user just bought (simple check against last order items)
         const lastOrderItems = orders.length > 0 ? orders[0].items.toLowerCase() : "";
-        
         const filteredRecs = recommendations.filter(prod => 
             !lastOrderItems.includes(prod.title.toLowerCase())
         );
@@ -176,21 +161,21 @@ router.post('/zoho-widget', async (req, res) => {
             text: prod.reason || "Recommended",
             subtext: `Price: ${prod.price}`,
             image_url: prod.image || "https://img.icons8.com/ios-glyphs/60/000000/shopping-bag.png",
-            actionPayload: { id: prod.productId } 
+            actionPayload: { text: `Check out ${prod.title}: ${prod.image}` } // Sending link to chat
         }));
+        
+        // Force action name for products too
+        recItems.forEach(item => {
+            if(item.action) item.action.name = "handle_copy_text";
+        });
+
         const recSection = ui.buildListingSection("recommendations", "UPSELL OPPORTUNITIES", recItems);
 
         // --- SECTION 5: ACTIONS ---
-        // Added "Cancel/Return" buttons for the LATEST order
+        // Simplified Actions: Removed Cancel/Return (Moved to Full Dashboard)
         const actions = [
             ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
-            
-            ...(orders.length > 0 ? [
-                ui.createInvokeButton("Cancel Latest Order", "cancel_order", { id: orders[0].id }, "danger"),
-                ui.createInvokeButton("Return Latest Order", "return_order", { id: orders[0].id }, "default")
-            ] : []),
-
-            ui.createLinkButton("Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}`)
+            ui.createLinkButton("Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}&email=${email}`)
         ];
         const actionSection = ui.buildActionsSection("global_actions", actions);
 
