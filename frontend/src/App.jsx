@@ -13,14 +13,14 @@ import ShoppingGraph from "./components/analytics/ShoppingGraph";
 import CancelOrderModal from "./components/actions/CancelOrderModal";
 import ReturnOrderModal from "./components/actions/ReturnOrderModal";
 import TrackOrderModal from "./components/actions/TrackOrderModal";
-import Modal from "./components/ui/Modal";
+import Card from "./components/ui/Card"; 
 import Loader from "./components/ui/Loader";
-import EmptyState from "./components/ui/EmptyState";
+import EmptyState from "./components/ui/EmptyState"; 
 
 import "./styles/global.css";
 import "./styles/dashboard.css";
 import "./styles/components.css";
-import "./styles/variables.css"; // Ensure this is imported for CSS vars
+import "./styles/variables.css";
 
 /**
  * MAIN APPLICATION COMPONENT
@@ -28,7 +28,7 @@ import "./styles/variables.css"; // Ensure this is imported for CSS vars
  * Handles global state (via Context) and routing between views.
  */
 export default function App() {
-    // Context hook from useDashboardData.js
+    // Context hook pulls data from useDashboardData.js
     const { 
         loading, 
         error, 
@@ -39,32 +39,54 @@ export default function App() {
     } = useDashboard();
     
     // UI State for routing and modals
-    const [activeView, setActiveView] = useState('orders'); // 'orders' | 'analytics'
+    const [activeView, setActiveView] = useState('orders'); 
+    // modal structure: { type: 'cancel' | 'return' | 'track', order: {id, name, ...} }
     const [modal, setModal] = useState({ type: null, order: null });
 
     // --- Action Handlers (Calling Backend API) ---
 
-    const handleActionConfirm = async ({ orderId, reason, note }) => {
+    /**
+     * Handles confirmation for Cancel and Return modals.
+     * @param {object} data - { reason, note }
+     */
+    const handleActionConfirm = async (data) => {
+        // Retrieve the order object stored when the modal was opened
+        const orderToActOn = modal.order; 
+        
+        if (!orderToActOn || !orderToActOn.id) {
+            // Replace alert with a Modal/Toast in production
+            alert("Error: Cannot find valid order ID for action.");
+            setModal({ type: null, order: null });
+            return;
+        }
+        
         try {
             let result;
+            const orderId = orderToActOn.id; 
+
             if (modal.type === 'cancel') {
-                result = await api.cancelOrder(orderId, reason);
+                // API call to the Node.js backend
+                result = await api.cancelOrder(orderId, data.reason); 
             } else if (modal.type === 'return') {
-                result = await api.returnOrder(orderId, reason, note);
+                // API call to the Node.js backend
+                result = await api.returnOrder(orderId, data.reason, data.note);
+            } else {
+                 throw new Error("Unknown action type.");
             }
 
             if (result.success) {
-                // Refresh data to update order status in the UI
-                refreshDashboard();
-                alert(`Action Success: ${result.message}`); // Use custom toast in prod
+                // Re-fetch all data to show the updated status in the OrderCard
+                refreshDashboard(); 
+                alert(`Action Success: ${result.message}`);
             } else {
                 throw new Error(result.message || "Action failed.");
             }
         } catch (err) {
             console.error(`Error processing ${modal.type}:`, err);
-            alert(`Error: Failed to process ${modal.type}. Check API logs.`); // Replace with Modal/Toast
+            // Show specific API error to the operator
+            alert(`Error: ${err.message || `Failed to process ${modal.type}.`}`); 
         } finally {
-            setModal({ type: null, order: null }); // Close modal
+            setModal({ type: null, order: null }); // Always close modal
         }
     };
     
@@ -79,10 +101,10 @@ export default function App() {
         );
     }
     
-    // 2. Error State (If main data fetch failed)
+    // 2. Error State (If main data fetch failed or API keys are bad)
     if (error) {
         return (
-            <div className="p-4">
+            <div style={{ padding: '24px' }}>
                 <EmptyState 
                     title="Dashboard Connection Failed" 
                     subtitle={error} 
@@ -91,8 +113,21 @@ export default function App() {
             </div>
         );
     }
+    
+    // 3. Fallback for missing context (No email in URL)
+    if (!visitor?.email) {
+        return (
+            <div style={{ padding: '24px' }}>
+                <EmptyState 
+                    title="No Visitor Context" 
+                    subtitle="Please ensure the Dashboard is opened via the Zoho SalesIQ widget link containing the customer's email and chat ID." 
+                    icon={<XCircle size={32} />}
+                />
+            </div>
+        );
+    }
 
-    // 3. Main Application Grid
+    // 4. Main Application Grid
     return (
         <>
             <Layout
@@ -103,9 +138,10 @@ export default function App() {
                         <CustomerProfile 
                             customer={{ 
                                 ...visitor, 
-                                // Pass LTV/Orders from Context
-                                totalSpend: visitor.ecommerceProfile.totalSpend,
-                                orderCount: visitor.ecommerceProfile.orderCount,
+                                // Safely access deep properties
+                                totalSpend: visitor.ecommerceProfile?.totalSpend || 0,
+                                orderCount: visitor.ecommerceProfile?.orderCount || 0,
+                                tags: visitor.ecommerceProfile?.tags || []
                             }} 
                         />
                     </>
@@ -122,8 +158,9 @@ export default function App() {
                 {/* CENTER CONTENT based on activeView state */}
                 {activeView === 'orders' && (
                     <OrdersPanel
+                        visitorId={visitor.email}
                         orders={orders}
-                        // Pass handlers to OrderCard via OrdersPanel
+                        // Pass modal handlers
                         onCancel={(order) => setModal({ type: 'cancel', order })}
                         onReturn={(order) => setModal({ type: 'return', order })}
                         onTrack={(order) => setModal({ type: 'track', order })}
@@ -134,8 +171,8 @@ export default function App() {
                 {activeView === 'analytics' && (
                     <div className="analytics-view">
                         <ShoppingGraph orders={orders} />
-                        <Card title="Order Volume by Month" style={{ minHeight: '300px' }}>
-                            <EmptyState subtitle="Placeholder for future chart..." icon={<BarChart2 size={24} />} />
+                        <Card title="Spending Metrics">
+                            <EmptyState subtitle="Additional analytics charts coming soon..." icon={<BarChart2 size={24} />} />
                         </Card>
                     </div>
                 )}
