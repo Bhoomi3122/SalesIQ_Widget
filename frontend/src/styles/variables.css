@@ -1,0 +1,284 @@
+:root {
+  /* --------------------------------------------------------
+     PRIMARY BRAND COLORS (Earthy Palette)
+  --------------------------------------------------------- */
+  --color-primary: #B68D73;
+  --color-primary-light: #F7F4F0;
+  --color-primary-dark: #9A7460;
+  --color-secondary: #8B9A86;
+  --color-accent: #C9A18A;
+  --color-success: #7A9B7E;
+  --color-danger: #C07868;
+  --color-warning: #D4A574;
+
+  /* --------------------------------------------------------
+     BACKGROUNDS
+  --------------------------------------------------------- */
+  --color-bg: #FAF8F5;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F7F4F0;
+  --color-border: #D9CFC0;
+
+  /* --------------------------------------------------------
+     TEXT COLORS
+  --------------------------------------------------------- */
+  --text-primary: #3E3935;
+  --text-secondary: #5C5550;
+  --text-light: #FFFFFF;
+  --text-muted: #8B8379;
+
+  /* --------------------------------------------------------
+     LEGACY COMPATIBILITY (Mapped to earthy palette)
+  --------------------------------------------------------- */
+  --brand-blue: #8B9A86;
+  --brand-blue-dark: #6F8270;
+  --brand-blue-light: #E8EDE7;
+
+  --brand-green: #7A9B7E;
+  --brand-green-light: #E3EDE4;
+
+  --brand-red: #C07868;
+  --brand-red-dark: #A86858;
+  --brand-red-light: #F5E8E5;
+
+  --brand-yellow: #D4A574;
+  --brand-yellow-dark: #B8895F;
+  --brand-yellow-light: #F5EDE3;
+
+  --brand-gray: #8B8379;
+  --brand-gray-light: #D9CFC0;
+  --brand-gray-dark: #5C5550;
+
+  /* --------------------------------------------------------
+     NEUTRALS (Backgrounds & Text)
+  --------------------------------------------------------- */
+  --bg-body: #FAF8F5;
+  --bg-card: #FFFFFF;
+  --bg-light: #F7F4F0;
+
+  --text-main: #3E3935;
+  --text-subtle: #5C5550;
+  --text-muted: #8B8379;
+  --text-inverted: #FFFFFF;
+
+  /* --------------------------------------------------------
+     BORDER + DIVIDER
+  --------------------------------------------------------- */
+  --border-color: #D9CFC0;
+  --border-light: #E8DCC8;
+
+  /* --------------------------------------------------------
+     COMPONENT RADIUS
+  --------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* --------------------------------------------------------
+     SHADOWS (Elegant & Subtle)
+  --------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px 0 rgba(62, 57, 53, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(62, 57, 53, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(62, 57, 53, 0.10), 0 2px 4px -1px rgba(62, 57, 53, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(62, 57, 53, 0.10), 0 4px 6px -2px rgba(62, 57, 53, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(62, 57, 53, 0.10), 0 10px 10px -5px rgba(62, 57, 53, 0.04);
+
+  /* --------------------------------------------------------
+     SPACING SCALE
+  --------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* --------------------------------------------------------
+     FONT SIZES (Professional Scale)
+  --------------------------------------------------------- */
+  --font-xs: 12px;
+  --font-sm: 13px;
+  --font-md: 14px;
+  --font-lg: 16px;
+  --font-xl: 18px;
+  --font-xxl: 20px;
+  --font-xxxl: 24px;
+
+  /* --------------------------------------------------------
+     FONT WEIGHTS
+  --------------------------------------------------------- */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* --------------------------------------------------------
+     TRANSITIONS (Smooth & Professional)
+  --------------------------------------------------------- */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* --------------------------------------------------------
+     STATUS COLORS
+  --------------------------------------------------------- */
+  --status-success: #7A9B7E;
+  --status-success-bg: #E3EDE4;
+  --status-success-border: #C4D8C6;
+
+  --status-danger: #C07868;
+  --status-danger-bg: #F5E8E5;
+  --status-danger-border: #E5C9C0;
+
+  --status-warning: #D4A574;
+  --status-warning-bg: #F5EDE3;
+  --status-warning-border: #E8D6C0;
+
+  --status-info: #8B9A86;
+  --status-info-bg: #E8EDE7;
+  --status-info-border: #C9D3C7;
+
+  /* --------------------------------------------------------
+     GRADIENTS (Subtle Professional Backgrounds)
+  --------------------------------------------------------- */
+  --gradient-primary: linear-gradient(135deg, #B68D73 0%, #9A7460 100%);
+  --gradient-secondary: linear-gradient(135deg, #8B9A86 0%, #6F8270 100%);
+  --gradient-success: linear-gradient(135deg, #7A9B7E 0%, #648269 100%);
+  --gradient-surface: linear-gradient(135deg, #FFFFFF 0%, #F7F4F0 100%);
+  --gradient-bg: linear-gradient(180deg, #FAF8F5 0%, #F0EBE3 100%);
+
+  /* --------------------------------------------------------
+     Z-INDEX SCALE
+  --------------------------------------------------------- */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* --------------------------------------------------------
+   ANIMATION KEYFRAMES (Framer Motion-Inspired)
+--------------------------------------------------------- */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* --------------------------------------------------------
+   UTILITY ANIMATION CLASSES
+--------------------------------------------------------- */
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-medium) ease-out;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp var(--transition-medium) ease-out;
+}
+
+.animate-slide-in-down {
+  animation: slideInDown var(--transition-medium) ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft var(--transition-medium) ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight var(--transition-medium) ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--transition-medium) ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
