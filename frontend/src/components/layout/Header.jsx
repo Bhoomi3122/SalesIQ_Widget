@@ -1,129 +1,141 @@
 import React from "react";
+import { Sparkles, Bell, UserCircle } from "lucide-react"; // Ensure lucide-react is installed
 
 /**
- * AppHeader — SalesIQ Copilot Branding
+ * APP HEADER
  * -------------------------------------
- * A premium top-bar header representing your product identity.
- *
- * Props:
- * - rightContent (optional JSX) → buttons / icons (settings, refresh, etc.)
+ * The top navigation bar. Contains branding and operator status.
+ * Matches 'variables.css' theme (Enterprise Blue/Slate).
  */
 
 export default function Header({ rightContent }) {
   return (
     <>
       <style>{`
-        /* ---------------------------------------------------------
-           SALESIQ COPILOT — TOP APP HEADER (EARTHY PREMIUM)
-        ---------------------------------------------------------- */
-
-        .sq-header {
+        /* HEADER CONTAINER */
+        .app-header {
           width: 100%;
-          background: linear-gradient(
-            180deg,
-            rgba(255,255,255,0.96),
-            rgba(247,244,240,0.92)
-          );
-          border-bottom: 1px solid var(--border-light);
-          padding: 12px 20px;
+          height: var(--header-height);
+          background: var(--bg-surface);
+          border-bottom: 1px solid var(--border-color);
+          padding: 0 24px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           position: sticky;
           top: 0;
-          z-index: 50;
-          backdrop-filter: blur(10px);
-          box-shadow:
-            0 3px 6px rgba(80,70,60,0.05),
-            0 1px 2px rgba(80,70,60,0.03);
-          animation: headerFade 0.35s ease-out;
+          z-index: 40;
+          box-shadow: var(--shadow-sm);
         }
 
-        @keyframes headerFade {
-          from { opacity: 0; transform: translateY(-8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* LEFT BLOCK */
-        .sq-header-left {
+        /* LEFT: BRANDING */
+        .header-brand {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 12px;
         }
 
-        /* APP ICON */
-        .sq-header-logo {
+        .brand-icon {
           width: 36px;
           height: 36px;
-          border-radius: 10px;
-          background: var(--color-primary-light);
+          background: var(--color-primary);
+          color: white;
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: var(--color-primary-dark);
-          font-size: 18px;
+          box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+
+        .brand-text h1 {
+          font-size: 1.1rem;
           font-weight: 700;
-          letter-spacing: -0.03em;
-          box-shadow: var(--shadow-sm);
-          border: 1px solid var(--color-primary);
+          color: var(--text-main);
+          margin: 0;
+          line-height: 1.2;
         }
 
-        /* TEXT BLOCK */
-        .sq-header-title {
-          font-size: 17px;
-          font-weight: 700;
-          color: var(--text-primary);
-          letter-spacing: -0.03em;
+        .brand-text p {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin: 0;
+          letter-spacing: 0.02em;
         }
 
-        .sq-header-subtitle {
-          font-size: 12px;
-          color: var(--text-secondary);
-          margin-top: -2px;
-          letter-spacing: 0;
+        /* RIGHT: ACTIONS */
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 16px;
         }
 
-        /* RIGHT CONTENT */
-        .sq-header-actions {
+        .icon-btn {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 50%;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .icon-btn:hover {
+          background: var(--bg-body);
+          color: var(--color-primary);
+        }
+
+        .operator-status {
           display: flex;
           align-items: center;
           gap: 8px;
+          padding-left: 16px;
+          border-left: 1px solid var(--border-color);
         }
 
-        /* RESPONSIVE */
-        @media (max-width: 600px) {
-          .sq-header {
-            padding: 10px 14px;
-          }
-          .sq-header-logo {
-            width: 32px;
-            height: 32px;
-            font-size: 15px;
-          }
-          .sq-header-title {
-            font-size: 15px;
-          }
-          .sq-header-subtitle {
-            font-size: 11px;
-          }
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          background: var(--color-success);
+          border-radius: 50%;
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+
+        .operator-name {
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: var(--text-main);
         }
       `}</style>
 
-      <header className="sq-header">
-        {/* LEFT: LOGO + TITLE */}
-        <div className="sq-header-left">
-          <div className="sq-header-logo">AI</div>
-
-          <div>
-            <div className="sq-header-title">SalesIQ Copilot</div>
-            <div className="sq-header-subtitle">
-              Your AI-powered ecommerce assistant
-            </div>
+      <header className="app-header">
+        {/* LEFT: BRANDING */}
+        <div className="header-brand">
+          <div className="brand-icon">
+            <Sparkles size={20} fill="currentColor" />
+          </div>
+          <div className="brand-text">
+            <h1>OmniCom Copilot</h1>
+            <p>AI Command Center</p>
           </div>
         </div>
 
-        {/* RIGHT: ACTION BUTTONS */}
-        {rightContent && <div className="sq-header-actions">{rightContent}</div>}
+        {/* RIGHT: ACTIONS & PROFILE */}
+        <div className="header-actions">
+          {rightContent}
+          
+          <button className="icon-btn" title="Notifications">
+            <Bell size={20} />
+          </button>
+
+          <div className="operator-status">
+            <div className="status-dot" title="Online"></div>
+            <span className="operator-name">Operator</span>
+            <UserCircle size={24} className="text-muted" />
+          </div>
+        </div>
       </header>
     </>
   );

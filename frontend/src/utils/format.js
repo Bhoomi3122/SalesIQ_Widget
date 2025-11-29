@@ -1,76 +1,87 @@
-import dayjs from "dayjs";
+/**
+ * FORMATTING UTILITIES
+ * ----------------------------------------------------
+ * Pure JavaScript helpers for UI display. No external libraries required.
+ */
 
 /**
- * formatPrice
- * -----------
  * Converts number → formatted currency string.
- * Shopify returns amounts as strings sometimes, so we coerce safely.
+ * Example: 1200.5 -> "$1,200.50"
  */
-export function formatPrice(amount, currency = "USD") {
-  if (!amount) return "-";
+export function formatCurrency(amount, currency = 'USD') {
+  if (amount === undefined || amount === null) return '-';
+  
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(num)) return amount;
 
-  let value = parseFloat(amount);
-  if (isNaN(value)) return amount;
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(value);
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 2
+  }).format(num);
 }
 
 /**
- * formatDate
- * ----------
  * Convert timestamps to a readable display format.
- * Shopify typically returns ISO timestamps.
+ * Example: "2025-11-29T10:00:00Z" -> "Nov 29, 2025"
  */
 export function formatDate(dateStr) {
   if (!dateStr) return "-";
-  return dayjs(dateStr).format("DD MMM YYYY");
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 /**
- * formatDateTime
- * --------------
  * Show both date and time.
+ * Example: "2025-11-29T10:00:00Z" -> "Nov 29, 2025, 10:00 AM"
  */
 export function formatDateTime(dateStr) {
   if (!dateStr) return "-";
-  return dayjs(dateStr).format("DD MMM YYYY, hh:mm A");
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+
+  return date.toLocaleTimeString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 }
 
 /**
- * shorten
- * -------
  * Shortens long strings while keeping them readable.
  */
-export function shorten(text, max = 40) {
+export function shorten(text, max = 50) {
   if (!text) return "";
   if (text.length <= max) return text;
-  return text.slice(0, max) + "...";
+  return text.slice(0, max).trim() + "...";
 }
 
+
 /**
- * formatStatus
- * ------------
- * Converts Shopify status fields into clean UI strings.
- *
- * Example Shopify statuses:
- * - fulfillment_status = "fulfilled", "restocked", "null"
- * - financial_status = "paid", "pending", "refunded"
+ * Converts status fields (e.g., "partially_refunded") into clean UI strings.
  */
 export function formatStatus(status) {
   if (!status) return "Unknown";
-
+  
   const clean = status.replace(/_/g, " ");
 
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
+  // Capitalize each word (e.g., 'partially refunded' -> 'Partially Refunded')
+  return clean.split(' ').map(word => {
+    if (!word) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  }).join(' ');
 }
 
 /**
- * formatShipmentStatus
- * --------------------
- * Handles tracking statuses from fulfillment line items.
+ * Handles tracking statuses for display.
  */
 export function formatShipmentStatus(tracking) {
   if (!tracking || !tracking.status) return "Not Available";
@@ -86,8 +97,6 @@ export function formatShipmentStatus(tracking) {
 }
 
 /**
- * formatName
- * ----------
  * Capitalizes customer names safely.
  */
 export function formatName(name) {

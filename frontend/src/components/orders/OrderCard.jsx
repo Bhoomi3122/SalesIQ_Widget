@@ -1,130 +1,229 @@
-import React from "react";
-import "../../styles/orderCard.css";
+import React from 'react';
+import { Package, RefreshCw, XCircle, MapPin, AlertCircle } from 'lucide-react';
+import Button from '../ui/Button';
+import Badge from '../ui/Badge';
+import { formatCurrency, formatDate } from '../../utils/format';
 
 /**
- * OrderCard
- * ---------
- * Clean card showing summary of one order.
- *
- * Props:
- * - order (backend order object EXACT SHAPE)
- * - onClick (optional)
+ * SMART ORDER CARD
+ * ----------------------------------------------------
+ * Handles business logic for button eligibility:
+ * - Cancel: Only if NOT shipped.
+ * - Return: Only if Shipped/Delivered.
+ * - Track: Only if Tracking Info exists.
  */
-
-export default function OrderCard({ order, onClick }) {
+const OrderCard = ({ order, onCancel, onReturn, onTrack }) => {
   if (!order) return null;
 
-  const {
-    orderNumber,
-    financialStatus,
-    fulfillmentStatus,
-    shippingStatus,
-    totalPrice,
+  const { 
+    id, 
+    name, 
+    date, 
+    total, 
     currency,
-    line_items,
-    createdAt,
+    status, 
+    payment_status, 
+    items, // Assuming items is a string or array of objects
+    tracking_url 
   } = order;
 
-  /** ------------------------------
-   * STATUS MAPPING (BACKEND EXACT FIELDS)
-   * ------------------------------ */
-  const status =
-    shippingStatus ||
-    fulfillmentStatus ||
-    financialStatus ||
-    "unknown";
+  // --- BUSINESS LOGIC HELPERS ---
+  const statusLower = (status || "").toLowerCase();
+  const isShipped = statusLower === 'fulfilled' || statusLower === 'shipped';
+  const isCancelled = statusLower === 'cancelled';
+  const isReturnable = isShipped && !isCancelled; 
+  const isCancellable = !isShipped && !isCancelled;
 
-  const statusMap = {
-    delivered: {
-      bg: "var(--status-success-bg)",
-      color: "var(--status-success)",
-      label: "Delivered",
-    },
-    fulfilled: {
-      bg: "var(--status-success-bg)",
-      color: "var(--status-success)",
-      label: "Fulfilled",
-    },
-    paid: {
-      bg: "var(--status-info-bg)",
-      color: "var(--status-info)",
-      label: "Paid",
-    },
-    refunded: {
-      bg: "var(--status-danger-bg)",
-      color: "var(--status-danger)",
-      label: "Refunded",
-    },
-    pending: {
-      bg: "var(--status-warning-bg)",
-      color: "var(--status-warning)",
-      label: "Pending",
-    },
-    unknown: {
-      bg: "var(--border-light)",
-      color: "var(--text-muted)",
-      label: "Unknown",
-    },
+  // Status Badge Logic
+  const getStatusVariant = (s) => {
+    if (s === 'fulfilled' || s === 'delivered') return 'success';
+    if (s === 'unfulfilled' || s === 'pending') return 'warning';
+    if (s === 'cancelled') return 'danger';
+    return 'neutral';
   };
 
-  const badge = statusMap[status] || statusMap["unknown"];
+  // Item parsing (Handle both string and array)
+  const itemList = Array.isArray(items) ? items : (items ? items.split(',') : []);
 
   return (
-    <div
-      className="order-card order-card-animate"
-      onClick={onClick}
-      style={{ cursor: onClick ? "pointer" : "default" }}
-    >
-      {/* Header */}
-      <div className="order-card-header">
-        <span className="order-card-name">{orderNumber}</span>
+    <>
+      <style>{`
+        .order-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-lg);
+          padding: 20px;
+          transition: box-shadow 0.2s ease, transform 0.2s ease;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          position: relative;
+          overflow: hidden;
+        }
 
-        <span
-          className="order-card-badge"
-          style={{
-            background: badge.bg,
-            color: badge.color,
-          }}
-        >
-          {badge.label}
-        </span>
-      </div>
+        .order-card:hover {
+          box-shadow: var(--shadow-md);
+          border-color: var(--color-primary);
+          transform: translateY(-2px);
+        }
 
-      {/* Date */}
-      <div className="order-card-date">
-        {new Date(createdAt).toLocaleString()}
-      </div>
+        /* HEADER */
+        .order-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+        }
 
-      {/* Items */}
-      <div className="order-card-items">
-        {line_items.slice(0, 2).map((item, idx) => (
-          <div key={idx} className="order-card-item">
-            {item.quantity}× {item.name}
+        .order-id {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--text-main);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .order-date {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          margin-top: 4px;
+          display: block;
+        }
+
+        /* ITEMS AREA */
+        .order-items {
+          background: var(--bg-body);
+          padding: 12px;
+          border-radius: var(--radius-md);
+          font-size: 0.9rem;
+          color: var(--text-main);
+        }
+        
+        .item-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 4px;
+        }
+        .item-row:last-child { margin-bottom: 0; }
+        
+        .more-items {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-top: 4px;
+          font-style: italic;
+        }
+
+        /* FOOTER ACTIONS */
+        .order-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-top: 16px;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .order-total {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--text-main);
+        }
+
+        .action-group {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .cancelled-tag {
+          color: var(--color-danger);
+          font-size: 0.85rem;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+      `}</style>
+
+      <div className="order-card">
+        {/* Header */}
+        <div className="order-header">
+          <div>
+            <div className="order-id">
+              <Package size={18} className="text-muted"/> 
+              Order {name}
+            </div>
+            <span className="order-date">{formatDate(date)}</span>
           </div>
-        ))}
-
-        {line_items.length > 2 && (
-          <div className="order-card-more-items">
-            +{line_items.length - 2} more items
-          </div>
-        )}
-      </div>
-
-      <div className="zoho-divider"></div>
-
-      {/* Footer */}
-      <div className="order-card-footer">
-        <div className="order-card-total">
-          {currency} {totalPrice}
+          <Badge variant={getStatusVariant(statusLower)}>
+            {status?.toUpperCase() || "UNKNOWN"}
+          </Badge>
         </div>
 
-        <div className="order-card-tracking">
-          {shippingStatus === "delivered" ||
-          fulfillmentStatus === "fulfilled"
-            ? "Delivered"
-            : "Track Order →"}
+        {/* Items */}
+        <div className="order-items">
+          {itemList.slice(0, 2).map((item, idx) => (
+            <div key={idx} className="item-row">
+              <span>{typeof item === 'string' ? item : item.title}</span>
+            </div>
+          ))}
+          {itemList.length > 2 && (
+            <div className="more-items">+{itemList.length - 2} more items...</div>
+          )}
+          {itemList.length === 0 && <span className="text-muted">No items details</span>}
+        </div>
+
+        {/* Footer & Actions */}
+        <div className="order-footer">
+          <div className="order-total">
+            {formatCurrency(total, currency)}
+          </div>
+
+          <div className="action-group">
+            
+            {/* TRACK BUTTON (Only if Shipped) */}
+            {isShipped && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => onTrack(order)}
+                title={!tracking_url ? "No tracking info" : "Track Shipment"}
+              >
+                <MapPin size={14} /> Track
+              </Button>
+            )}
+
+            {/* RETURN BUTTON (Only if Shipped/Delivered) */}
+            {isReturnable && (
+              <Button 
+                size="sm" 
+                variant="secondary" 
+                onClick={() => onReturn(order)}
+              >
+                <RefreshCw size={14} /> Return
+              </Button>
+            )}
+
+            {/* CANCEL BUTTON (Only if Unfulfilled) */}
+            {isCancellable && (
+              <Button 
+                size="sm" 
+                variant="danger" 
+                onClick={() => onCancel(order)}
+              >
+                <XCircle size={14} /> Cancel
+              </Button>
+            )}
+
+            {/* CANCELLED STATE */}
+            {isCancelled && (
+              <span className="cancelled-tag">
+                <AlertCircle size={14} /> Cancelled
+              </span>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
-}
+};
+
+export default OrderCard;

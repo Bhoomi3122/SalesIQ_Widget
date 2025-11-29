@@ -1,100 +1,74 @@
 /**
- * ---------------------------------------------------------
  * GLOBAL CONSTANTS FOR OPERATOR COPILOT UI
  * ---------------------------------------------------------
+ * Defines UI rules, status mappings, and shared component types.
  */
 
 /**
- * Order Status → Badge Variant Mapping
+ * 1. ORDER STATUS MAPPING (For Badge Colors & Labels)
+ * Maps backend status strings to frontend visual rules.
  */
-export const STATUS_VARIANTS = {
-  fulfilled: "green",
-  delivered: "green",
-  cancelled: "red",
-  refunded: "red",
-  partially_refunded: "yellow",
-  pending: "yellow",
-  in_transit: "blue",
-  unfulfilled: "gray",
-  unknown: "gray",
+export const STATUS_MAPPING = {
+    // Fulfilled/Delivered = Success
+    fulfilled: { variant: "success", label: "Fulfilled" },
+    delivered: { variant: "success", label: "Delivered" },
+    
+    // Cancellation/Refund = Danger
+    cancelled: { variant: "danger", label: "Cancelled" },
+    refunded: { variant: "danger", label: "Refunded" },
+    
+    // Pending/Transit/Unpaid = Warning/Info
+    unfulfilled: { variant: "warning", label: "Unfulfilled" },
+    pending: { variant: "warning", label: "Pending Payment" },
+    in_transit: { variant: "info", label: "In Transit" },
+
+    // Fallback
+    unknown: { variant: "neutral", label: "Unknown" },
 };
 
 /**
- * Friendly Labels for Shopify Statuses
+ * 2. ACTION TYPES (Used by Modals and Buttons)
+ * Defines the types of actions the Operator can perform.
  */
-export const STATUS_LABELS = {
-  fulfilled: "Fulfilled",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-  refunded: "Refunded",
-  partially_refunded: "Partially Refunded",
-  pending: "Pending",
-  in_transit: "In Transit",
-  unfulfilled: "Unfulfilled",
-  unknown: "Unknown",
+export const ACTION_TYPES = {
+    // Actions requiring confirmation/forms
+    CANCEL_ORDER: "cancel-order",
+    RETURN_ORDER: "return-order",
+    
+    // Actions requiring UI overlay
+    TRACK_ORDER: "track-order", 
+    
+    // Actions logging data (e.g., used by API)
+    LOG_MESSAGE_SENT: "log-message-sent",
 };
 
 /**
- * Mapping for order types / workflows
+ * 3. TRACKING TIMELINE STAGES (For OrderTimeline.jsx)
+ * Defines the steps needed to construct the visual timeline.
  */
-export const WORKFLOW_TYPES = {
-  CANCEL_ORDER: "cancel-order",
-  RETURN_ORDER: "return-order",
-  TRACK_ORDER: "track-order",
-  SEND_MESSAGE: "send-message",
-};
+export const TRACKING_STAGES = [
+    { id: 'placed', label: 'Order Placed', icon: 'Package' },
+    { id: 'paid', label: 'Payment Processed', icon: 'CreditCard' },
+    { id: 'shipped', label: 'Shipped', icon: 'Truck' },
+    { id: 'delivered', label: 'Delivered', icon: 'CheckCircle' },
+];
+
 
 /**
- * AI Prompt Templates (Frontend Side)
- * Used when preparing AI payloads for backend
- */
-export const AI_TEMPLATES = {
-  REPLY_SUGGESTION:
-    "Generate 3 short, professional customer support replies based on the conversation context below.",
-  PRODUCT_RECOMMENDATION:
-    "Recommend 3 products that match the user's intent and purchase history.",
-  SENTIMENT_ANALYSIS:
-    "Analyze the sentiment of the customer's last messages and classify it as positive, neutral, or negative.",
-};
-
-/**
- * API Route Constants
- * Used by api.js for clarity & maintainability
- */
-export const API_ROUTES = {
-  ORDERS_BY_EMAIL: (email) => `/api/operator/orders/${email}`,
-  SMART_REPLY: "/api/operator/smart-reply",
-  CANCEL_ORDER: "/api/operator/cancel-order",
-  RETURN_ORDER: "/api/operator/return-order",
-  TRACK_ORDER: "/api/operator/track-order",
-  SEND_MESSAGE: "/api/operator/send-message",
-  RECOMMEND_PRODUCTS: "/api/operator/recommend-products",
-  CREATE_COUPON: "/api/operator/create-coupon",
-};
-
-/**
- * Fallback placeholders
+ * 4. UI Placeholders (Default text when data is missing)
  */
 export const PLACEHOLDERS = {
-  NO_EMAIL: "No email available",
-  NO_NAME: "Unknown Visitor",
-  NO_ORDER_DATA: "No order details available",
-  NO_TRACKING: "Tracking info unavailable",
+    NO_EMAIL: "No email available",
+    NO_NAME: "Unknown Visitor",
+    NO_ORDER_DATA: "Order details unavailable",
+    NO_TRACKING: "Tracking information unavailable",
 };
 
 /**
- * UI Configurations
+ * 5. EXTERNAL LINKS (Used by Buttons)
+ * These link to your deployed React Dashboard.
+ * NOTE: Ensure the VITE_FRONTEND_URL is set in your local .env or Vercel/Render.
  */
-export const UI_CONFIG = {
-  MAX_NAME_LENGTH: 30,
-  MAX_PRODUCT_TITLE_LENGTH: 50,
-  MAX_MESSAGE_PREVIEW: 100,
-};
-
-/**
- * Shopify config
- */
-export const SHOPIFY_CONSTANTS = {
-  TRACKING_FIELDS: ["tracking_number", "tracking_company", "tracking_url"],
-  SUPPORTED_CURRENCIES: ["USD", "INR", "EUR", "GBP", "AUD"],
+export const FRONTEND_URLS = {
+    DASHBOARD_BASE: import.meta.env.VITE_FRONTEND_URL || "http://localhost:3000",
 };

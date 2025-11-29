@@ -1,127 +1,88 @@
-/**
- * ---------------------------------------------------------
- * API SERVICE — PRODUCTION READY (NO MOCKS)
- * ---------------------------------------------------------
- * Connected to real backend endpoints:
- *
- *  GET  /api/operator/customer/:email
- *  GET  /api/operator/orders/:email
- *
- *  POST /api/operator/cancel
- *  POST /api/operator/return
- *
- *  POST /api/operator/ai/reply
- *  POST /api/operator/send-reply
- *
- * ---------------------------------------------------------
- */
-
 import axios from "axios";
 
-// Use environment variable OR fallback to local server
+/**
+ * API SERVICE
+ * ---------------------------------------------------------
+ * Connects React Frontend to Node.js Backend.
+ * Base URL: VITE_API_BASE (or localhost:5000)
+ */
+
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
-// Axios instance
-const api = axios.create({
+const client = axios.create({
   baseURL: API_BASE,
-  timeout: 15000,
+  timeout: 20000, // 20s timeout for AI calls
   headers: { "Content-Type": "application/json" },
 });
 
-/* -------------------------------------------------------
- * LOGGING (DEV ONLY)
- * ------------------------------------------------------- */
-api.interceptors.request.use((config) => {
+// Request Logger (Dev Mode)
+client.interceptors.request.use((config) => {
   if (import.meta.env.DEV) {
-    console.log(
-      "%c[API →]",
-      "color:#2a9d8f",
-      config.method?.toUpperCase(),
-      config.url,
-      config.data || ""
-    );
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data || "");
   }
   return config;
 });
 
-api.interceptors.response.use(
-  (res) => {
-    if (import.meta.env.DEV) {
-      console.log("%c[API ←]", "color:#264653", res.data);
+export const api = {
+  
+  // --- 1. CUSTOMER DATA ---
+  
+  getCustomerProfile: async (email) => {
+    try {
+      const res = await client.get(`/api/operator/customer/${encodeURIComponent(email)}`);
+      return res.data?.customer || null;
+    } catch (error) {
+      console.warn("Profile fetch failed, returning fallback.");
+      return { name: "Guest User", email, totalSpend: 0, orderCount: 0 };
     }
-    return res;
   },
-  (err) => {
-    console.error("[API] ERROR:", err?.response || err);
-    return Promise.reject(err);
+
+  getOrders: async (email) => {
+    try {
+      const res = await client.get(`/api/operator/orders/${encodeURIComponent(email)}`);
+      return res.data?.orders || [];
+    } catch (error) {
+      console.warn("Orders fetch failed, returning empty list.");
+      return [];
+    }
+  },
+
+  // --- 2. AI INTELLIGENCE ---
+
+  getAiAnalysis: async (email, contextText) => {
+    try {
+      const res = await client.post("/api/operator/ai/analyze", { 
+        email, 
+        context: contextText 
+      });
+      return res.data || { sentiment: { label: 'Neutral', score: 0 }, suggestions: [], recommendations: [] };
+    } catch (error) {
+      console.error("AI Analysis Failed:", error);
+      return { 
+        sentiment: { label: 'Neutral', score: 0 }, 
+        suggestions: ["AI Service Unavailable"], 
+        recommendations: [] 
+      };
+    }
+  },
+
+  // --- 3. ACTIONS (Modals) ---
+
+  cancelOrder: async (orderId, reason) => {
+    const res = await client.post("/api/operator/orders/cancel", { orderId, reason });
+    return res.data;
+  },
+
+  returnOrder: async (orderId, reason, note) => {
+    const res = await client.post("/api/operator/orders/return", { orderId, reason, note });
+    return res.data;
+  },
+
+  sendProductLink: async (email, productId) => {
+    const res = await client.post("/api/operator/products/send-link", { email, productId });
+    return res.data;
   }
-);
 
-/* -------------------------------------------------------
- * API FUNCTIONS (REAL)
- * ------------------------------------------------------- */
+};
 
-/**
- * CUSTOMER PROFILE
- */
-export async function getCustomerProfile(email) {
-  const res = await api.get(`/api/operator/customer/${email}`);
-  return res.data?.customer || null;
-}
-
-/**
- * ORDERS BY EMAIL
- */
-export async function getOrdersByEmail(email) {
-  const res = await api.get(`/api/operator/orders/${email}`);
-  return res.data?.orders || [];
-}
-
-/**
- * CANCEL ORDER
- * payload: { email, orderNumber }
- */
-export async function cancelOrder(payload) {
-  const res = await api.post("/api/operator/cancel", payload);
-  return res.data;
-}
-
-/**
- * RETURN ORDER
- * payload: { email, orderNumber }
- */
-export async function createReturn(payload) {
-  const res = await api.post("/api/operator/return", payload);
-  return res.data;
-}
-
-/**
- * AI SMART REPLY
- * payload: { message, context: { email } }
- */
-export async function getAISmartReplies(payload) {
-  const res = await api.post("/api/operator/ai/reply", payload);
-  return res.data?.data || [];
-}
-
-/**
- * LEGACY COMPATIBILITY
- * getAIRecommendations → maps to getAISmartReplies
- */
-export async function getAIRecommendations(payload) {
-  return getAISmartReplies(payload);
-}
-
-/**
- * SEND MESSAGE TO VISITOR
- * payload: { visitorId, message }
- */
-export async function sendMessageToVisitor(payload) {
-  const res = await api.post("/api/operator/send-reply", payload);
-  return res.data;
-}
-
-/**
- * DEFAULT EXPORT
- */
 export default api;

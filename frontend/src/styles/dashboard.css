@@ -1,0 +1,85 @@
+/* ------------------------------------------------------
+   DASHBOARD LAYOUTS
+   Grid systems for the main content area.
+------------------------------------------------------- */
+
+/* --- OVERVIEW GRID (The Main Dashboard) --- */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* Main Content (2/3) | Side Widgets (1/3) */
+  gap: 24px;
+  padding-bottom: 32px;
+}
+
+/* Left Column (Graph + Orders) */
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Right Column (Profile + AI) */
+.dashboard-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  height: fit-content;
+  position: sticky;
+  top: 24px;
+}
+
+/* --- ORDERS VIEW --- */
+.orders-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* --- ANALYTICS VIEW --- */
+.analytics-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* --- RESPONSIVE BREAKPOINTS --- */
+
+/* Tablet: Stack the grid */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Single column */
+  }
+  
+  .dashboard-sidebar {
+    position: static; /* No sticky on mobile */
+    flex-direction: row; /* Profile and AI side-by-side if room */
+    flex-wrap: wrap;
+  }
+
+  .dashboard-sidebar > * {
+    flex: 1;
+    min-width: 300px;
+  }
+}
+
+/* Mobile: Simple vertical stack */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    flex-direction: column;
+  }
+  
+  .analytics-view {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- UTILITY CLASSES FOR DASHBOARD --- */
+.full-height {
+  height: 100%;
+}
+
+.scroll-container {
+  overflow-y: auto;
+  padding-right: 4px; /* Prevent scrollbar overlap */
+}

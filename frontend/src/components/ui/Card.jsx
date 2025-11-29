@@ -1,57 +1,54 @@
 import React from "react";
 
 /**
- * Card Component — Earthy Premium UI
+ * CARD COMPONENT
  * ----------------------------------
- * Replaces all Tailwind + clsx versions.
- *
- * Props:
- * - title
- * - children
- * - className (optional)
+ * Standard container with consistent padding and shadows.
+ * Matches 'variables.css' theme.
  */
 
-export default function Card({ title, children, className = "" }) {
+export default function Card({ title, children, className = "", onClick }) {
   return (
     <>
       <style>{`
-        .earthy-card {
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
+        .card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-color);
           border-radius: var(--radius-lg);
-          padding: var(--space-5);
-          box-shadow: var(--shadow-xs);
-          transition: all var(--transition-medium);
-          animation: fadeIn 0.3s ease-out;
-        }
-
-        .earthy-card:hover {
+          padding: 20px;
           box-shadow: var(--shadow-sm);
-          transform: translateY(-2px);
+          transition: box-shadow 0.2s ease, transform 0.2s ease;
+          overflow: hidden;
         }
 
-        .earthy-card-title {
-          font-size: var(--font-lg);
+        .card.interactive:hover {
+          box-shadow: var(--shadow-md);
+          transform: translateY(-1px);
+          cursor: pointer;
+          border-color: var(--color-primary);
+        }
+
+        .card-title {
+          font-size: 1.1rem;
           font-weight: 600;
-          color: var(--text-primary);
-          margin-bottom: var(--space-3);
+          color: var(--text-main);
+          margin-bottom: 16px;
           letter-spacing: -0.01em;
         }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
+        
+        /* Responsive padding */
         @media (max-width: 640px) {
-          .earthy-card {
-            padding: var(--space-4);
+          .card {
+            padding: 16px;
           }
         }
       `}</style>
 
-      <div className={`earthy-card ${className}`}>
-        {title && <h2 className="earthy-card-title">{title}</h2>}
+      <div 
+        className={`card ${onClick ? 'interactive' : ''} ${className}`}
+        onClick={onClick}
+      >
+        {title && <h2 className="card-title">{title}</h2>}
         {children}
       </div>
     </>

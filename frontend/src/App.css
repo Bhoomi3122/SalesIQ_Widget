@@ -1,122 +1,23 @@
 /* -------------------------------------------------------
-   APP ROOT WRAPPER
-   Controls the full viewport container
+   APP ROOT WRAPPER (Final Clean Version)
+   Defines the necessary structure for the whole application
+   to fill the viewport (100vh).
 -------------------------------------------------------- */
 
 #root,
 .app-root {
   width: 100%;
-  height: 100vh;
-  background: var(--bg-body);
+  height: 100vh; /* Ensures app fills the browser window */
   display: flex;
-  overflow: visible;
-}
-
-/* -------------------------------------------------------
-   MAIN LAYOUT SECTION
--------------------------------------------------------- */
-
-.app-layout {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  background: var(--bg-body);
-}
-
-/* Sidebar default */
-.app-sidebar {
-  width: 64px;
-  background: var(--bg-card);
-  border-right: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-}
-
-/* -------------------------------------------------------
-   CONTENT AREA
--------------------------------------------------------- */
-
-.app-content {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  flex-direction: column; /* Allows Header and Main Wrapper to stack */
+  overflow: hidden; /* Prevents double scrollbars */
   background: var(--bg-body);
 }
 
 /* -------------------------------------------------------
-   PANELS GRID AREA
--------------------------------------------------------- */
-
-.panels-container {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 300px 1fr 340px;
-  gap: 14px;
-  padding: 14px;
-  background: var(--bg-body);
-  overflow: hidden;
-}
-
-/* Compact 2-column variant */
-.panels-2col {
-  grid-template-columns: 300px 1fr;
-}
-
-/* -------------------------------------------------------
-   SCROLLABLE PANELS
--------------------------------------------------------- */
-
-.panel-scroll {
-  height: 100%;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-/* Beautiful premium scrollbar */
-.panel-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.panel-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 20px;
-  transition: background 0.2s ease;
-}
-
-.panel-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
-}
-
-/* -------------------------------------------------------
-   CHAT AREA (Future extension)
--------------------------------------------------------- */
-
-.chat-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-
-.chat-messages {
-  flex: 1;
-  padding: 14px;
-  overflow-y: auto;
-}
-
-.chat-input {
-  padding: 12px 14px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-card);
-}
-
-/* -------------------------------------------------------
-   UTILITY CLASSES
+   GLOBAL UTILITIES
+   Minimalistic utilities. Most complex layout/styles 
+   are defined in global.css or components.css
 -------------------------------------------------------- */
 
 .full-height {
@@ -137,26 +38,16 @@
   justify-content: center;
 }
 
-/* -------------------------------------------------------
-   RESPONSIVE BEHAVIOR
--------------------------------------------------------- */
-
-/* 1280px — Slightly compact layout */
-@media (max-width: 1280px) {
-  .panels-container {
-    grid-template-columns: 260px 1fr 300px;
-  }
+/* Base style for the main content area wrapper */
+.main-content-wrapper {
+  flex: 1; /* Takes up all remaining vertical space */
+  overflow: hidden;
+  display: flex;
 }
 
-/* 1024px — collapse to a single column */
-@media (max-width: 1024px) {
-  .panels-container {
-    grid-template-columns: 1fr;
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .app-sidebar {
-    width: 56px;
+/* Responsive fix for small screens */
+@media (max-width: 768px) {
+  #root, .app-root {
+    overflow-y: auto; /* Allow vertical scrolling on mobile */
   }
 }

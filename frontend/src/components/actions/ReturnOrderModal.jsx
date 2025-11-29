@@ -1,17 +1,12 @@
 import React, { useState } from "react";
+import { X } from "lucide-react"; // Ensure lucide-react is installed
 
 /**
- * ReturnOrderModal
- * ----------------
- * Modern compact modal for order returns.
- *
- * Props:
- * - visible (boolean)
- * - order (Shopify order)
- * - onClose()
- * - onConfirm({ reason, note })
+ * RETURN ORDER MODAL
+ * ----------------------------------------------------
+ * A professional modal to capture return reasons and notes.
+ * Matches 'variables.css' theme.
  */
-
 export default function ReturnOrderModal({
   visible,
   order,
@@ -25,7 +20,7 @@ export default function ReturnOrderModal({
 
   const handleSubmit = () => {
     if (!reason.trim()) {
-      alert("Please select a reason for the return.");
+      // Basic validation feedback (could be improved with a toast)
       return;
     }
     onConfirm({ reason, note });
@@ -45,166 +40,221 @@ export default function ReturnOrderModal({
   return (
     <>
       <style>{`
-        /* ------------------------------------------------------
-           OVERLAY
-        ------------------------------------------------------- */
         .modal-overlay {
           position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,0.35);
-          backdrop-filter: blur(3px);
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: var(--bg-modal-overlay); /* Defined in variables.css */
+          backdrop-filter: blur(4px);
           display: flex;
-          justify-content: center;
           align-items: center;
-          z-index: 999;
-          animation: modalFadeIn 0.25s ease-out;
+          justify-content: center;
+          z-index: 50;
+          animation: fadeIn 0.2s ease-out;
         }
 
-        @keyframes modalFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        /* ------------------------------------------------------
-           MODAL BOX
-        ------------------------------------------------------- */
-        .modal-content {
-          width: 360px;
-          max-width: 92%;
-          background: var(--color-surface);
+        .modal-container {
+          background: var(--bg-surface);
+          width: 100%;
+          max-width: 420px;
           border-radius: var(--radius-lg);
-          border: 1px solid var(--color-border);
-          padding: var(--space-4);
-          box-shadow: var(--shadow-lg);
-          animation: modalSlideUp 0.28s ease-out;
+          box-shadow: var(--shadow-modal);
+          border: 1px solid var(--border-color);
+          overflow: hidden;
+          animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        @keyframes modalSlideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
+        /* HEADER */
+        .modal-header {
+          padding: 20px 24px;
+          border-bottom: 1px solid var(--border-color);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: var(--bg-body);
         }
 
-        /* ------------------------------------------------------
-           HEADER
-        ------------------------------------------------------- */
         .modal-title {
-          font-size: var(--font-lg);
-          font-weight: var(--font-semibold);
-          color: var(--text-primary);
-          margin-bottom: var(--space-1);
+          font-size: 1.125rem; /* 18px */
+          font-weight: 600;
+          color: var(--text-main);
+          margin: 0;
         }
 
-        .modal-subtitle {
-          font-size: var(--font-sm);
-          color: var(--text-secondary);
-          line-height: 1.45;
-          margin-bottom: var(--space-4);
+        .close-btn {
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          transition: background 0.2s;
+        }
+        .close-btn:hover {
+          background: #e2e8f0;
+          color: var(--text-main);
         }
 
-        /* ------------------------------------------------------
-           LABEL
-        ------------------------------------------------------- */
-        .modal-label {
-          font-size: var(--font-sm);
-          font-weight: 500;
-          color: var(--text-primary);
-          margin-bottom: var(--space-1);
+        /* BODY */
+        .modal-body {
+          padding: 24px;
+        }
+
+        .modal-description {
+          font-size: 0.95rem;
+          color: var(--text-muted);
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
+
+        .order-highlight {
+          font-weight: 600;
+          color: var(--text-main);
+        }
+
+        /* INPUTS */
+        .input-group {
+          margin-bottom: 16px;
+        }
+
+        .input-label {
           display: block;
+          font-size: 0.85rem;
+          font-weight: 600;
+          color: var(--text-main);
+          margin-bottom: 8px;
         }
 
-        /* ------------------------------------------------------
-           SELECT
-        ------------------------------------------------------- */
-        .modal-select {
+        .modal-select, .modal-textarea {
           width: 100%;
-          padding: var(--space-2);
+          padding: 10px 12px;
+          border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
-          border: 1px solid var(--color-border);
-          font-size: var(--font-sm);
-          margin-bottom: var(--space-4);
-          background: var(--color-surface-alt);
-          transition: border var(--transition-fast);
+          font-size: 0.95rem;
+          color: var(--text-main);
+          background: #fff;
+          transition: border-color 0.2s, box-shadow 0.2s;
+          font-family: inherit;
         }
 
-        .modal-select:focus {
-          border-color: var(--color-primary);
-          outline: none;
-        }
-
-        /* ------------------------------------------------------
-           TEXTAREA
-        ------------------------------------------------------- */
         .modal-textarea {
-          width: 100%;
-          resize: none;
-          padding: var(--space-2);
-          height: 80px;
-          border-radius: var(--radius-md);
-          border: 1px solid var(--color-border);
-          font-size: var(--font-sm);
-          background: var(--color-surface-alt);
-          margin-bottom: var(--space-4);
-          transition: border var(--transition-fast);
+          min-height: 80px;
+          resize: vertical;
         }
 
-        .modal-textarea:focus {
+        .modal-select:focus, .modal-textarea:focus {
           border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); /* Blue focus ring */
           outline: none;
         }
 
-        /* ------------------------------------------------------
-           FOOTER BUTTONS
-        ------------------------------------------------------- */
+        /* FOOTER */
         .modal-footer {
+          padding: 16px 24px;
+          background: var(--bg-body);
+          border-top: 1px solid var(--border-color);
           display: flex;
           justify-content: flex-end;
-          gap: var(--space-2);
+          gap: 12px;
         }
+
+        /* BUTTONS */
+        .btn {
+          padding: 10px 16px;
+          border-radius: var(--radius-md);
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: 1px solid transparent;
+        }
+
+        .btn-cancel {
+          background: white;
+          border-color: var(--border-color);
+          color: var(--text-main);
+        }
+        .btn-cancel:hover {
+          background: #f1f5f9;
+        }
+
+        .btn-confirm {
+          background: var(--color-primary); /* Primary Blue */
+          color: white;
+          box-shadow: var(--shadow-sm);
+        }
+        .btn-confirm:hover {
+          background: var(--color-primary-hover);
+        }
+        .btn-confirm:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
       `}</style>
 
-      <div className="modal-overlay">
-        <div className="modal-content">
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+          
+          {/* Header */}
+          <div className="modal-header">
+            <h3 className="modal-title">Initiate Return</h3>
+            <button className="close-btn" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
 
-          {/* Title */}
-          <h2 className="modal-title">Initiate Return</h2>
+          {/* Body */}
+          <div className="modal-body">
+            <p className="modal-description">
+              Process return for <span className="order-highlight">{order.name}</span>.
+              Please verify items before confirming.
+            </p>
 
-          {/* Subtitle */}
-          <p className="modal-subtitle">
-            You are processing a return for <strong>{order.name}</strong>.
-            Select a valid return reason below.
-          </p>
+            <div className="input-group">
+              <label className="input-label">
+                Reason for Return <span style={{color: 'var(--color-danger)'}}>*</span>
+              </label>
+              <select
+                className="modal-select"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                autoFocus
+              >
+                <option value="">Select a reason...</option>
+                {returnReasons.map((r, idx) => (
+                  <option key={idx} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Reason */}
-          <label className="modal-label">Return Reason</label>
-          <select
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="modal-select"
-          >
-            <option value="">Select a reason</option>
-            {returnReasons.map((r, idx) => (
-              <option key={idx} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-
-          {/* Notes */}
-          <label className="modal-label">Notes (optional)</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Example: Customer reported damaged product"
-            className="modal-textarea"
-          ></textarea>
+            <div className="input-group">
+              <label className="input-label">Additional Notes (Optional)</label>
+              <textarea
+                className="modal-textarea"
+                placeholder="e.g. Item damaged during shipping..."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+          </div>
 
           {/* Footer */}
           <div className="modal-footer">
-            <button className="btn-secondary" onClick={onClose}>
-              Close
+            <button className="btn btn-cancel" onClick={onClose}>
+              Cancel
             </button>
-
-            <button className="btn-primary" onClick={handleSubmit}>
+            <button 
+              className="btn btn-confirm" 
+              onClick={handleSubmit}
+              disabled={!reason}
+            >
               Confirm Return
             </button>
           </div>

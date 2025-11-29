@@ -1,85 +1,85 @@
 /**
+ * GENERAL HELPER UTILITIES
+ * ----------------------------------------------------
+ * Functions for array manipulation, safe property access, and business logic checks.
+ */
+
+/**
  * isEmpty
  * -------
- * Checks if a value is empty, null, undefined, or blank string.
+ * Checks if a value is null, undefined, blank string, or empty array/object.
  */
 export function isEmpty(value) {
-  return (
-    value === null ||
-    value === undefined ||
-    (typeof value === "string" && value.trim().length === 0)
-  );
+    if (value === null || value === undefined) return true;
+    if (typeof value === "string" && value.trim().length === 0) return true;
+    if (Array.isArray(value) && value.length === 0) return true;
+    if (typeof value === "object" && Object.keys(value).length === 0) return true;
+    return false;
 }
 
 /**
  * safeGet
  * -------
- * Safe deep property access.
+ * Safely accesses deep properties without crashing on null/undefined.
  * Example: safeGet(order, "customer.email")
  */
 export function safeGet(obj, path, fallback = null) {
-  try {
-    return path.split(".").reduce((acc, key) => {
-      if (acc && typeof acc === "object") return acc[key];
-      return fallback;
-    }, obj);
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * capitalize
- * ----------
- * Capitalizes any string safely.
- */
-export function capitalize(text) {
-  if (!text || typeof text !== "string") return "";
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+    try {
+        return path.split(".").reduce((acc, key) => {
+            if (acc && typeof acc === "object" && key in acc) {
+                return acc[key];
+            }
+            return undefined; // Stop traversing if a key is missing
+        }, obj) ?? fallback; // Return fallback if final value is undefined
+    } catch {
+        return fallback;
+    }
 }
 
 /**
  * isValidEmail
  * ------------
- * Email validation used for visitor queries.
+ * Simple email validation used for visitor queries.
  */
 export function isValidEmail(email) {
-  if (!email) return false;
-  const re = /\S+@\S+\.\S+/;
-  return re.test(email);
+    if (isEmpty(email)) return false;
+    const re = /\S+@\S+\.\S+/;
+    return re.test(email);
 }
 
 /**
  * hasFulfillment
  * ---------------
- * Checks if Shopify order has fulfillment(s).
+ * Checks if a live order object contains fulfillment details.
  */
 export function hasFulfillment(order) {
-  return (
-    order &&
-    Array.isArray(order.fulfillments) &&
-    order.fulfillments.length > 0
-  );
+    // We assume the order object fetched from the backend follows the Shopify fulfillment structure
+    return (
+        !isEmpty(order) &&
+        Array.isArray(order.fulfillments) &&
+        order.fulfillments.length > 0
+    );
 }
 
 /**
  * getTrackingInfo
  * ----------------
- * Safely return tracking info from Shopify order/fillment.
+ * Safely returns tracking info object from the order.
  */
 export function getTrackingInfo(order) {
-  if (!hasFulfillment(order)) return null;
+    if (!hasFulfillment(order)) return null;
 
-  const fulfillment = order.fulfillments[0]; // usually only one
-  if (!fulfillment || !fulfillment.tracking_info) return null;
+    // Use the latest fulfillment details
+    const fulfillment = order.fulfillments[0]; 
+    if (!fulfillment || !fulfillment.tracking_info) return null;
 
-  const t = fulfillment.tracking_info;
-  return {
-    number: t.number || "-",
-    company: t.company || "-",
-    url: t.url || null,
-    status: t.status || "Unknown",
-  };
+    const t = fulfillment.tracking_info;
+    return {
+        number: t.number || safeGet(fulfillment, "tracking_number") || "-",
+        company: t.company || safeGet(fulfillment, "tracking_company") || "-",
+        url: t.url || safeGet(fulfillment, "tracking_url") || null,
+        status: t.status || "Unknown",
+    };
 }
 
 /**
@@ -88,8 +88,8 @@ export function getTrackingInfo(order) {
  * Generic date sorting helper (descending).
  */
 export function sortByDate(array, field = "created_at") {
-  if (!Array.isArray(array)) return [];
-  return array.sort((a, b) => new Date(b[field]) - new Date(a[field]));
+    if (!Array.isArray(array)) return [];
+    return array.slice().sort((a, b) => new Date(b[field]) - new Date(a[field]));
 }
 
 /**
@@ -98,7 +98,8 @@ export function sortByDate(array, field = "created_at") {
  * Remove duplicates from array.
  */
 export function unique(arr) {
-  return [...new Set(arr)];
+    if (!Array.isArray(arr)) return [];
+    return [...new Set(arr)];
 }
 
 /**
@@ -107,5 +108,5 @@ export function unique(arr) {
  * Utility for awaiting small pauses (demo/debug).
  */
 export function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -1,63 +1,57 @@
 import React from "react";
 
 /**
- * Loader — Earthy Premium Spinner
+ * LOADER COMPONENT
  * -------------------------------
- * Props:
- * - text (string)
- * - size (number)
- * - className (string)
+ * Professional spinning loader state.
+ * Matches 'variables.css' theme.
  */
 
-export default function Loader({ text = "", size = 34, className = "" }) {
+export default function Loader({ text = "Loading...", size = 32, className = "" }) {
   return (
-    <div
-      className={`earthy-loader ${className}`}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "var(--text-muted)",
-        gap: "10px",
-        padding: "8px",
-        animation: "fadeIn 0.3s ease-out",
-      }}
-    >
-      {/* Spinner */}
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          border: "3px solid var(--border-light)",
-          borderTopColor: "var(--color-primary)",
-          animation: "earthySpin 0.8s linear infinite",
-        }}
-      ></div>
-
-      {/* Optional Text */}
-      {text && (
-        <p
-          style={{
-            fontSize: "13px",
-            color: "var(--text-secondary)",
-            fontWeight: 500,
-            textAlign: "center",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {text}
-        </p>
-      )}
-
-      {/* Spinner animation */}
+    <div className={`loader-container ${className}`}>
       <style>{`
-        @keyframes earthySpin {
+        .loader-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          color: var(--text-muted);
+          gap: 12px;
+          height: 100%;
+          min-height: 120px;
+        }
+
+        .spinner {
+          border-radius: 50%;
+          border: 3px solid var(--border-color);
+          border-top-color: var(--color-primary);
+          animation: spin 0.8s linear infinite;
+        }
+
+        .loader-text {
+          font-size: 0.85rem;
+          font-weight: 500;
+          color: var(--text-muted);
+          letter-spacing: 0.01em;
+        }
+
+        @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
       `}</style>
+
+      <div 
+        className="spinner"
+        style={{
+          width: size,
+          height: size
+        }}
+      />
+      
+      {text && <span className="loader-text">{text}</span>}
     </div>
   );
 }

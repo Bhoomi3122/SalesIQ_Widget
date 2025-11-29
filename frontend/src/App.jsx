@@ -1,219 +1,179 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useDashboard } from "./context/DashboardContext";
+import { api } from "./services/api";
+import { XCircle, BarChart2 } from "lucide-react"; 
 
-import { useVisitorContext } from "./context/VisitorContext";
-import { useUIContext } from "./context/UIContext";
-
-import Header from "./components/layout/Header";
-import CustomerCard from "./components/customer/CustomerCard";
+import Layout from "./components/layout/Layout";
+import Sidebar from "./components/layout/Sidebar";
+import CustomerProfile from "./components/customer/CustomerProfile";
 import OrdersPanel from "./components/orders/OrdersPanel";
-import AiPanel from "./components/ai/AiPanel";
-import ActionsPanel from "./components/actions/ActionsPanel";
+import AiAssistant from "./components/ai/AiAssistant";
+import ShoppingGraph from "./components/analytics/ShoppingGraph";
 
 import CancelOrderModal from "./components/actions/CancelOrderModal";
 import ReturnOrderModal from "./components/actions/ReturnOrderModal";
-import SendMessageModal from "./components/actions/SendMessageModal";
-
+import TrackOrderModal from "./components/actions/TrackOrderModal";
+import Modal from "./components/ui/Modal";
 import Loader from "./components/ui/Loader";
-import EmptyState from "./components/EmptyState";
-
-import {
-  cancelOrder,
-  createReturn,
-  sendMessageToVisitor,
-} from "./services/api";
+import EmptyState from "./components/ui/EmptyState";
 
 import "./styles/global.css";
+import "./styles/dashboard.css";
 import "./styles/components.css";
-import "./styles/variables.css";
-import "./styles/orderCard.css";
-import "./styles/actionsPanel.css";
-import "./styles/OrderTimeline.css";
-import "./styles/OrdersPanel.css";
+import "./styles/variables.css"; // Ensure this is imported for CSS vars
 
+/**
+ * MAIN APPLICATION COMPONENT
+ * -----------------------------------------------------
+ * Handles global state (via Context) and routing between views.
+ */
 export default function App() {
-  const { visitor, visitorReady } = useVisitorContext();
-  const { modal, loading, openModal, closeModal, startLoading, stopLoading } =
-    useUIContext();
+    // Context hook from useDashboardData.js
+    const { 
+        loading, 
+        error, 
+        visitor, 
+        orders, 
+        aiInsights, 
+        refreshDashboard 
+    } = useDashboard();
+    
+    // UI State for routing and modals
+    const [activeView, setActiveView] = useState('orders'); // 'orders' | 'analytics'
+    const [modal, setModal] = useState({ type: null, order: null });
 
-  const [selectedOrder, setSelectedOrder] = useState(null);
+    // --- Action Handlers (Calling Backend API) ---
 
-  // -----------------------------------------------------
-  //  NO MOCK VISITOR — PRODUCTION MODE ONLY
-  // -----------------------------------------------------
+    const handleActionConfirm = async ({ orderId, reason, note }) => {
+        try {
+            let result;
+            if (modal.type === 'cancel') {
+                result = await api.cancelOrder(orderId, reason);
+            } else if (modal.type === 'return') {
+                result = await api.returnOrder(orderId, reason, note);
+            }
 
-  // Wait until visitor arrives from SalesIQ
-  if (!visitorReady) {
+            if (result.success) {
+                // Refresh data to update order status in the UI
+                refreshDashboard();
+                alert(`Action Success: ${result.message}`); // Use custom toast in prod
+            } else {
+                throw new Error(result.message || "Action failed.");
+            }
+        } catch (err) {
+            console.error(`Error processing ${modal.type}:`, err);
+            alert(`Error: Failed to process ${modal.type}. Check API logs.`); // Replace with Modal/Toast
+        } finally {
+            setModal({ type: null, order: null }); // Close modal
+        }
+    };
+    
+    // --- UI Rendering Logic ---
+
+    // 1. Initial Load State
+    if (loading) {
+        return (
+            <div style={{ height: '100vh', display: 'flex' }}>
+                <Loader text="Initializing OmniCom Dashboard..." />
+            </div>
+        );
+    }
+    
+    // 2. Error State (If main data fetch failed)
+    if (error) {
+        return (
+            <div className="p-4">
+                <EmptyState 
+                    title="Dashboard Connection Failed" 
+                    subtitle={error} 
+                    icon={<XCircle size={32} className="text-danger" />}
+                />
+            </div>
+        );
+    }
+
+    // 3. Main Application Grid
     return (
-      <div
-        style={{
-          height: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <EmptyState
-          title="Loading visitor..."
-          subtitle="Waiting for visitor data from SalesIQ."
-        />
-      </div>
+        <>
+            <Layout
+                // LEFT SIDEBAR (Navigation + Customer Profile)
+                sidebarContent={
+                    <>
+                        <Sidebar activeView={activeView} onViewChange={setActiveView} />
+                        <CustomerProfile 
+                            customer={{ 
+                                ...visitor, 
+                                // Pass LTV/Orders from Context
+                                totalSpend: visitor.ecommerceProfile.totalSpend,
+                                orderCount: visitor.ecommerceProfile.orderCount,
+                            }} 
+                        />
+                    </>
+                }
+                // RIGHT PANEL (AI Assistant)
+                rightPanelContent={
+                    <AiAssistant 
+                        sentiment={aiInsights.sentiment}
+                        suggestions={aiInsights.suggestions}
+                        recommendations={aiInsights.recommendations}
+                    />
+                }
+            >
+                {/* CENTER CONTENT based on activeView state */}
+                {activeView === 'orders' && (
+                    <OrdersPanel
+                        orders={orders}
+                        // Pass handlers to OrderCard via OrdersPanel
+                        onCancel={(order) => setModal({ type: 'cancel', order })}
+                        onReturn={(order) => setModal({ type: 'return', order })}
+                        onTrack={(order) => setModal({ type: 'track', order })}
+                        refreshOrders={refreshDashboard}
+                    />
+                )}
+                
+                {activeView === 'analytics' && (
+                    <div className="analytics-view">
+                        <ShoppingGraph orders={orders} />
+                        <Card title="Order Volume by Month" style={{ minHeight: '300px' }}>
+                            <EmptyState subtitle="Placeholder for future chart..." icon={<BarChart2 size={24} />} />
+                        </Card>
+                    </div>
+                )}
+                
+                {activeView === 'settings' && (
+                    <Card title="Settings">
+                        <EmptyState title="API Configuration" subtitle="Settings panel is for future external configuration." />
+                    </Card>
+                )}
+
+            </Layout>
+
+            {/* --- MODAL RENDERING --- */}
+            {modal.type === 'cancel' && (
+                <CancelOrderModal 
+                    isOpen={true} 
+                    order={modal.order} 
+                    onClose={() => setModal({ type: null, order: null })} 
+                    onConfirm={handleActionConfirm}
+                />
+            )}
+            
+            {modal.type === 'return' && (
+                <ReturnOrderModal 
+                    isOpen={true} 
+                    order={modal.order} 
+                    onClose={() => setModal({ type: null, order: null })} 
+                    onConfirm={handleActionConfirm} 
+                />
+            )}
+
+            {modal.type === 'track' && (
+                <TrackOrderModal
+                    visible={true}
+                    order={modal.order}
+                    onClose={() => setModal({ type: null, order: null })}
+                />
+            )}
+        </>
     );
-  }
-
-  // -----------------------------------------------------
-  // REAL BACKEND ACTION HANDLERS
-  // -----------------------------------------------------
-
-  const handleCancelOrder = async (reason) => {
-    try {
-      startLoading();
-      const payload = {
-        email: visitor.email,
-        orderNumber: selectedOrder?.orderNumber,
-        reason,
-      };
-
-      await cancelOrder(payload);
-      closeModal();
-    } catch (err) {
-      console.error("Cancel error:", err);
-      alert("Failed to cancel order.");
-    } finally {
-      stopLoading();
-    }
-  };
-
-  const handleReturnOrder = async ({ reason, note }) => {
-    try {
-      startLoading();
-      const payload = {
-        email: visitor.email,
-        orderNumber: selectedOrder?.orderNumber,
-        reason,
-        note,
-      };
-
-      await createReturn(payload);
-      closeModal();
-    } catch (err) {
-      console.error("Return error:", err);
-      alert("Failed to create return.");
-    } finally {
-      stopLoading();
-    }
-  };
-
-  const handleSendMessage = async (msg) => {
-    try {
-      startLoading();
-      const payload = {
-        visitorId: visitor.visitorId,
-        message: msg,
-      };
-
-      await sendMessageToVisitor(payload);
-      closeModal();
-    } catch (err) {
-      console.error("Message send error:", err);
-      alert("Failed to send message.");
-    } finally {
-      stopLoading();
-    }
-  };
-
-  // -----------------------------------------------------
-  // UI
-  // -----------------------------------------------------
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--bg-main)",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <Header />
-
-      {/* GLOBAL LOADING OVERLAY */}
-      {loading && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(255,255,255,0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2000,
-          }}
-        >
-          <Loader text="Processing..." />
-        </div>
-      )}
-
-      {/* MAIN GRID */}
-      <div
-        style={{
-          padding: "14px",
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr",
-          gap: "14px",
-          flexGrow: 1,
-          overflow: "hidden",
-        }}
-      >
-        {/* LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <CustomerCard visitor={visitor} />
-
-          <OrdersPanel
-            visitor={visitor}
-            onSelectOrder={(o) => setSelectedOrder(o)}
-          />
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          <AiPanel
-            visitor={visitor}
-            orders={selectedOrder ? [selectedOrder] : []}
-          />
-
-          <ActionsPanel
-            visitor={visitor}
-            order={selectedOrder}
-            onCancel={() => openModal("cancel-order")}
-            onReturn={() => openModal("return-order")}
-            onTrack={() => alert("Tracking coming soon…")}
-            onSendMessage={() => openModal("send-message")}
-            onCreateCoupon={() => alert("Coupon feature coming soon")}
-          />
-        </div>
-      </div>
-
-      {/* MODALS */}
-      <CancelOrderModal
-        visible={modal === "cancel-order"}
-        order={selectedOrder}
-        onClose={closeModal}
-        onConfirm={handleCancelOrder}
-      />
-
-      <ReturnOrderModal
-        visible={modal === "return-order"}
-        order={selectedOrder}
-        onClose={closeModal}
-        onConfirm={handleReturnOrder}
-      />
-
-      <SendMessageModal
-        visible={modal === "send-message"}
-        visitor={visitor}
-        onClose={closeModal}
-        onSend={handleSendMessage}
-      />
-    </div>
-  );
 }

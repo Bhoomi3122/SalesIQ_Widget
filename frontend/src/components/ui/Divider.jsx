@@ -1,37 +1,26 @@
 import React from "react";
 
 /**
- * Divider Component — Earthy Premium UI
+ * DIVIDER COMPONENT
  * -------------------------------------
- * Replaces Tailwind + clsx divider.
- *
- * Props:
- * - spacing: optional vertical spacing (default medium)
- * - className: extra classes if needed
+ * Simple horizontal line for separation.
+ * Matches 'variables.css' theme.
  */
 
-export default function Divider({ spacing = "var(--space-3)", className = "" }) {
+export default function Divider({ className = "" }) {
   return (
     <>
       <style>{`
-        .earthy-divider {
+        .divider {
           height: 1px;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(150,140,130,0.32) 20%,
-            rgba(150,140,130,0.32) 80%,
-            transparent
-          );
-          opacity: 0.75;
+          background-color: var(--border-color);
           width: 100%;
+          margin: 0;
+          opacity: 0.6;
         }
       `}</style>
 
-      <div
-        className="earthy-divider"
-        style={{ margin: `${spacing} 0` }}
-      ></div>
+      <div className={`divider ${className}`} />
     </>
   );
 }

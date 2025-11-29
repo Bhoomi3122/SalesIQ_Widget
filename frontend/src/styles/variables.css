@@ -1,284 +1,103 @@
 :root {
   /* --------------------------------------------------------
-     PRIMARY BRAND COLORS (Earthy Palette)
+     PRIMARY BRAND COLORS (Enterprise Blue & Slate)
+     Replaces "Earthy" palette with Professional SaaS Blue.
   --------------------------------------------------------- */
-  --color-primary: #B68D73;
-  --color-primary-light: #F7F4F0;
-  --color-primary-dark: #9A7460;
-  --color-secondary: #8B9A86;
-  --color-accent: #C9A18A;
-  --color-success: #7A9B7E;
-  --color-danger: #C07868;
-  --color-warning: #D4A574;
+  --color-primary: #2563eb;       /* Royal Blue */
+  --color-primary-hover: #1d4ed8;
+  --color-primary-light: #eff6ff;
+  
+  --color-secondary: #64748b;     /* Slate Grey */
+  --color-secondary-hover: #475569;
+  
+  /* --------------------------------------------------------
+     FUNCTIONAL STATUS COLORS
+  --------------------------------------------------------- */
+  --color-success: #10b981;       /* Emerald (Delivered) */
+  --color-success-bg: #ecfdf5;
+  --color-success-border: #a7f3d0;
+
+  --color-warning: #f59e0b;       /* Amber (Pending) */
+  --color-warning-bg: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  --color-danger: #ef4444;        /* Red (Cancelled) */
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  --color-info: #3b82f6;          /* Sky (Tracking) */
+  --color-info-bg: #f0f9ff;
+  --color-info-border: #bae6fd;
 
   /* --------------------------------------------------------
-     BACKGROUNDS
+     BACKGROUNDS & SURFACES
   --------------------------------------------------------- */
-  --color-bg: #FAF8F5;
-  --color-surface: #FFFFFF;
-  --color-surface-alt: #F7F4F0;
-  --color-border: #D9CFC0;
+  --bg-body: #f8fafc;             /* Very Light Blue-Grey */
+  --bg-surface: #ffffff;          /* Pure White Cards */
+  --bg-sidebar: #0f172a;          /* Dark Navy Sidebar */
+  --bg-header: #ffffff;
+  --bg-modal-overlay: rgba(15, 23, 42, 0.75); /* Dark blur */
 
   /* --------------------------------------------------------
-     TEXT COLORS
+     TYPOGRAPHY COLORS
   --------------------------------------------------------- */
-  --text-primary: #3E3935;
-  --text-secondary: #5C5550;
-  --text-light: #FFFFFF;
-  --text-muted: #8B8379;
+  --text-main: #1e293b;           /* Slate 800 (High Contrast) */
+  --text-muted: #64748b;          /* Slate 500 (Subtitles) */
+  --text-light: #f1f5f9;          /* Slate 100 (On Dark BG) */
+  --text-on-primary: #ffffff;
 
   /* --------------------------------------------------------
-     LEGACY COMPATIBILITY (Mapped to earthy palette)
+     BORDERS & SHADOWS
   --------------------------------------------------------- */
-  --brand-blue: #8B9A86;
-  --brand-blue-dark: #6F8270;
-  --brand-blue-light: #E8EDE7;
-
-  --brand-green: #7A9B7E;
-  --brand-green-light: #E3EDE4;
-
-  --brand-red: #C07868;
-  --brand-red-dark: #A86858;
-  --brand-red-light: #F5E8E5;
-
-  --brand-yellow: #D4A574;
-  --brand-yellow-dark: #B8895F;
-  --brand-yellow-light: #F5EDE3;
-
-  --brand-gray: #8B8379;
-  --brand-gray-light: #D9CFC0;
-  --brand-gray-dark: #5C5550;
-
-  /* --------------------------------------------------------
-     NEUTRALS (Backgrounds & Text)
-  --------------------------------------------------------- */
-  --bg-body: #FAF8F5;
-  --bg-card: #FFFFFF;
-  --bg-light: #F7F4F0;
-
-  --text-main: #3E3935;
-  --text-subtle: #5C5550;
-  --text-muted: #8B8379;
-  --text-inverted: #FFFFFF;
-
-  /* --------------------------------------------------------
-     BORDER + DIVIDER
-  --------------------------------------------------------- */
-  --border-color: #D9CFC0;
-  --border-light: #E8DCC8;
-
-  /* --------------------------------------------------------
-     COMPONENT RADIUS
-  --------------------------------------------------------- */
-  --radius-xs: 4px;
+  --border-color: #e2e8f0;
+  
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 
   /* --------------------------------------------------------
-     SHADOWS (Elegant & Subtle)
+     LAYOUT & SPACING
   --------------------------------------------------------- */
-  --shadow-xs: 0 1px 2px 0 rgba(62, 57, 53, 0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(62, 57, 53, 0.08);
-  --shadow-md: 0 4px 6px -1px rgba(62, 57, 53, 0.10), 0 2px 4px -1px rgba(62, 57, 53, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(62, 57, 53, 0.10), 0 4px 6px -2px rgba(62, 57, 53, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(62, 57, 53, 0.10), 0 10px 10px -5px rgba(62, 57, 53, 0.04);
-
+  --header-height: 64px;
+  --sidebar-width: 260px;
+  --container-max-width: 1200px;
+  
   /* --------------------------------------------------------
-     SPACING SCALE
+     ANIMATIONS
   --------------------------------------------------------- */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
-
-  /* --------------------------------------------------------
-     FONT SIZES (Professional Scale)
-  --------------------------------------------------------- */
-  --font-xs: 12px;
-  --font-sm: 13px;
-  --font-md: 14px;
-  --font-lg: 16px;
-  --font-xl: 18px;
-  --font-xxl: 20px;
-  --font-xxxl: 24px;
-
-  /* --------------------------------------------------------
-     FONT WEIGHTS
-  --------------------------------------------------------- */
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
-  --font-bold: 700;
-
-  /* --------------------------------------------------------
-     TRANSITIONS (Smooth & Professional)
-  --------------------------------------------------------- */
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* --------------------------------------------------------
-     STATUS COLORS
-  --------------------------------------------------------- */
-  --status-success: #7A9B7E;
-  --status-success-bg: #E3EDE4;
-  --status-success-border: #C4D8C6;
-
-  --status-danger: #C07868;
-  --status-danger-bg: #F5E8E5;
-  --status-danger-border: #E5C9C0;
-
-  --status-warning: #D4A574;
-  --status-warning-bg: #F5EDE3;
-  --status-warning-border: #E8D6C0;
-
-  --status-info: #8B9A86;
-  --status-info-bg: #E8EDE7;
-  --status-info-border: #C9D3C7;
-
-  /* --------------------------------------------------------
-     GRADIENTS (Subtle Professional Backgrounds)
-  --------------------------------------------------------- */
-  --gradient-primary: linear-gradient(135deg, #B68D73 0%, #9A7460 100%);
-  --gradient-secondary: linear-gradient(135deg, #8B9A86 0%, #6F8270 100%);
-  --gradient-success: linear-gradient(135deg, #7A9B7E 0%, #648269 100%);
-  --gradient-surface: linear-gradient(135deg, #FFFFFF 0%, #F7F4F0 100%);
-  --gradient-bg: linear-gradient(180deg, #FAF8F5 0%, #F0EBE3 100%);
-
-  /* --------------------------------------------------------
-     Z-INDEX SCALE
-  --------------------------------------------------------- */
-  --z-dropdown: 1000;
-  --z-sticky: 1020;
-  --z-fixed: 1030;
-  --z-modal-backdrop: 1040;
-  --z-modal: 1050;
-  --z-popover: 1060;
-  --z-tooltip: 1070;
+  --transition-fast: 0.15s ease-in-out;
+  --transition-normal: 0.25s ease-in-out;
 }
 
-/* --------------------------------------------------------
-   ANIMATION KEYFRAMES (Framer Motion-Inspired)
---------------------------------------------------------- */
+/* GLOBAL RESET & UTILITIES */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
+body {
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-/* --------------------------------------------------------
-   UTILITY ANIMATION CLASSES
---------------------------------------------------------- */
-
-.animate-fade-in {
-  animation: fadeIn var(--transition-medium) ease-out;
-}
-
-.animate-slide-in-up {
-  animation: slideInUp var(--transition-medium) ease-out;
-}
-
-.animate-slide-in-down {
-  animation: slideInDown var(--transition-medium) ease-out;
-}
-
-.animate-slide-in-left {
-  animation: slideInLeft var(--transition-medium) ease-out;
-}
-
-.animate-slide-in-right {
-  animation: slideInRight var(--transition-medium) ease-out;
-}
-
-.animate-scale-in {
-  animation: scaleIn var(--transition-medium) ease-out;
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
