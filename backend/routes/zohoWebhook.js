@@ -1,61 +1,81 @@
 const express = require('express');
 const router = express.Router();
 
-// Import Services
 const ecommerceManager = require('../services/ecommerceManager');
 const aiService = require('../services/aiService');
 const recommendationService = require('../services/recommendationService');
-
-// Import Utilities
 const ui = require('../utils/zohoUiBuilder');
-
-// Import Models
 const InteractionLog = require('../models/InteractionLog');
 
-// Helper to strip emojis from text for a clean look
-const cleanText = (text) => text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
-
 /**
- * ZOHO SALESIQ WEBHOOK HANDLER
- * ----------------------------------------------------------------
- * Professional Edition: Clean UI, No Emojis, Corporate Styling.
+ * HELPER: Deep Search for Visitor Data
+ * Zoho payloads vary based on context (Detail vs Action).
+ * This function hunts for email/chatId recursively.
  */
+const extractContext = (payload) => {
+    // 1. Try Root Level (Standard Detail Handler)
+    let email = payload.visitor?.email;
+    let chatId = payload.conversation?.id || payload.conversation_id;
+
+    // 2. Try Context Level (Action Handler)
+    if (!email) email = payload.context?.visitor?.email;
+    if (!chatId) chatId = payload.context?.conversation_id;
+
+    // 3. Try Data Level (Nested Actions)
+    if (!email && payload.data) {
+        email = payload.data.visitor?.email || payload.data.context?.visitor?.email;
+    }
+    if (!chatId && payload.data) {
+        chatId = payload.data.conversation?.id || payload.data.conversation_id;
+    }
+
+    return {
+        email: email || "guest@example.com",
+        chatId: chatId || "unknown_chat",
+        message: payload.conversation?.message || ""
+    };
+};
+
 router.post('/zoho-widget', async (req, res) => {
     const startTime = Date.now();
     
-    // 1. EXTRACT PAYLOAD
-    const payload = req.body;
-    let handlerType = payload.handler;
-    if (!handlerType) {
-        handlerType = payload.name ? "action" : "detail";
-    }
-    
-    const visitorEmail = payload.visitor?.email || payload.context?.visitor?.email || "guest@example.com";
-    const chatId = payload.conversation?.id || payload.context?.conversation_id || "unknown_chat";
-    const messageText = payload.conversation?.message || ""; 
+    // --- DEBUGGING: Print the FULL structure ---
+    // This will show up in your Render/Ngrok logs so you can see exactly 
+    // what Zoho is sending.
+    console.log("📦 ZOHO RAW PAYLOAD:", JSON.stringify(req.body, null, 2)); 
 
-    console.log(`🔔 Webhook: ${handlerType.toUpperCase()} | Chat: ${chatId}`);
+    // 1. EXTRACT DATA USING SMART HELPER
+    const { email, chatId, message } = extractContext(req.body);
+    
+    // Identify Handler Type
+    let handlerType = req.body.handler;
+    if (!handlerType) {
+        handlerType = req.body.name ? "action" : "detail";
+    }
+
+    console.log(`🔔 Webhook Processing: ${handlerType} | Chat: ${chatId} | Visitor: ${email}`);
 
     try {
         // ============================================================
         // CASE 1: ACTION HANDLER (Button Clicks)
         // ============================================================
         if (handlerType === "action") {
-            const actionName = payload.action?.name || payload.name;
-            const actionData = payload.action?.data || payload.data || {};
+            const actionName = req.body.action?.name || req.body.name;
+            const actionData = req.body.action?.data || req.body.data || {};
             
+            console.log(`⚡ Executing Action: ${actionName}`);
             const actionResult = await ecommerceManager.executeAction(actionName, actionData);
 
             await InteractionLog.create({
                 chatId,
-                operatorEmail: payload.operator?.email || "unknown",
+                operatorEmail: req.body.operator?.email || "unknown",
                 actionType: actionName,
                 details: { result: actionResult }
             });
 
             return res.json({
                 type: "banner",
-                text: actionResult.message || "Action processed successfully",
+                text: actionResult.message || "Action processed",
                 status: actionResult.success ? "success" : "failure"
             });
         }
@@ -64,23 +84,22 @@ router.post('/zoho-widget', async (req, res) => {
         // CASE 2: DETAIL HANDLER (Load UI)
         // ============================================================
         
+        // Fetch Data
         const [profile, orders, sentiment, smartReplies, recommendations] = await Promise.all([
-            ecommerceManager.getCustomerProfile(visitorEmail),
-            ecommerceManager.getRecentOrders(visitorEmail),
-            aiService.analyzeSentiment(messageText),
-            aiService.generateSmartReplies(messageText, { email: visitorEmail }), 
-            recommendationService.getRecommendationsForVisitor(visitorEmail)
+            ecommerceManager.getCustomerProfile(email),
+            ecommerceManager.getRecentOrders(email),
+            aiService.analyzeSentiment(message),
+            aiService.generateSmartReplies(message, { email }), 
+            recommendationService.getRecommendationsForVisitor(email)
         ]);
 
-        // --- SECTION 1: METRICS ---
-        // Clean, High-Level Stats
-        const metricSection = ui.buildMetricSection("metrics", "CUSTOMER PROFILE", [
-            { label: "Sentiment", value: cleanText(sentiment.label) }, 
-            { label: "Lifetime Value", value: `$${profile?.ecommerceProfile?.totalSpend || 0}` },
-            { label: "Total Orders", value: `${profile?.ecommerceProfile?.orderCount || 0}` }
+        // UI Construction
+        const metricSection = ui.buildMetricSection("metrics", "Customer Vitals", [
+            { label: "Sentiment", value: `${sentiment.label}` },
+            { label: "LTV", value: `$${profile?.ecommerceProfile?.totalSpend || 0}` },
+            { label: "Orders", value: `${profile?.ecommerceProfile?.orderCount || 0}` }
         ]);
 
-        // --- SECTION 2: LAST ORDER ---
         let orderFields = [{ label: "Status", value: "No recent orders" }];
         if (orders && orders.length > 0) {
             const last = orders[0];
@@ -91,43 +110,34 @@ router.post('/zoho-widget', async (req, res) => {
                 { label: "Items", value: last.items || "N/A" }
             ];
         }
-        const orderSection = ui.buildFieldsetSection("last_order", "MOST RECENT ORDER", orderFields);
+        const orderSection = ui.buildFieldsetSection("last_order", "📦 Last Order Context", orderFields);
 
-        // --- SECTION 3: AI SMART REPLIES ---
-        // Professional Icon: A simple 'reply' arrow or 'chat' bubble
-        const replyIcon = "https://img.icons8.com/ios-glyphs/60/000000/chat.png";
-        
         const aiItems = smartReplies.map((reply, index) => ({
-            title: `Reply Option ${index + 1}`,
+            title: `Suggestion #${index + 1}`,
             text: reply, 
-            subtext: "Click to copy to chat",
-            image_url: replyIcon,
+            subtext: "Click to copy",
+            image_url: "https://cdn-icons-png.flaticon.com/512/4712/4712009.png", 
             actionPayload: { text: reply } 
         }));
-        const aiSection = ui.buildListingSection("ai_replies", "SMART REPLIES", aiItems);
+        const aiSection = ui.buildListingSection("ai_replies", "✨ AI Suggestions", aiItems);
 
-        // --- SECTION 4: PRODUCT RECOMMENDATIONS ---
-        // Professional Icon: A simple 'tag' or 'product' icon if image fails
         const recItems = recommendations.map(prod => ({
             title: prod.title,
-            text: prod.reason || "Based on purchase history",
-            subtext: `Price: ${prod.price}`,
-            image_url: prod.image || "https://img.icons8.com/ios-glyphs/60/000000/shopping-bag.png",
+            text: prod.reason || "Recommended",
+            subtext: prod.price,
+            image_url: prod.image,
             actionPayload: { id: prod.productId } 
         }));
-        const recSection = ui.buildListingSection("recommendations", "UPSELL RECOMMENDATIONS", recItems);
+        const recSection = ui.buildListingSection("recommendations", "🔥 Recommended Products", recItems);
 
-        // --- SECTION 5: GLOBAL ACTIONS ---
-        // Clean Labels
+        // Update with your Live Frontend URL
         const actions = [
-            ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
-            ...(orders.length > 0 ? [ui.createInvokeButton("Process Refund", "refund_order", { id: orders[0].id }, "danger")] : []),
-            // NOTE: Replace URL below with your deployed Frontend URL
-            ui.createLinkButton("Open Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}`)
+            ui.createInvokeButton("🔄 Refresh AI Analysis", "refresh_widget", {}, "primary"),
+            ...(orders.length > 0 ? [ui.createInvokeButton("💸 Process Refund", "refund_order", { id: orders[0].id }, "danger")] : []),
+            ui.createLinkButton("🚀 Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}`)
         ];
         const actionSection = ui.buildActionsSection("global_actions", actions);
 
-        // Assemble
         const finalResponse = ui.buildWidgetResponse([
             metricSection,
             orderSection,
@@ -142,8 +152,8 @@ router.post('/zoho-widget', async (req, res) => {
     } catch (error) {
         console.error("❌ Widget Error:", error);
         res.json(ui.buildWidgetResponse([
-            ui.buildMetricSection("error", "System Status", [{ label: "Backend", value: "Offline" }]),
-            ui.buildFieldsetSection("error_details", "Error Log", [{ label: "Message", value: "Service unavailable." }])
+            ui.buildMetricSection("error", "System Alert", [{ label: "Status", value: "Error" }]),
+            ui.buildFieldsetSection("error_details", "Debug Info", [{ label: "Message", value: "Check server logs." }])
         ]));
     }
 });
