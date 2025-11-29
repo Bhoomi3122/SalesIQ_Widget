@@ -7,21 +7,22 @@ const recommendationService = require('../services/recommendationService');
 const ui = require('../utils/zohoUiBuilder');
 const InteractionLog = require('../models/InteractionLog');
 
+// HELPER: Strip emojis for a clean, corporate look
+const cleanText = (text) => {
+    if (!text) return "";
+    return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+};
+
 /**
  * HELPER: Deep Search for Visitor Data
- * Zoho payloads vary based on context (Detail vs Action).
- * This function hunts for email/chatId recursively.
  */
 const extractContext = (payload) => {
-    // 1. Try Root Level (Standard Detail Handler)
     let email = payload.visitor?.email;
     let chatId = payload.conversation?.id || payload.conversation_id;
 
-    // 2. Try Context Level (Action Handler)
     if (!email) email = payload.context?.visitor?.email;
     if (!chatId) chatId = payload.context?.conversation_id;
 
-    // 3. Try Data Level (Nested Actions)
     if (!email && payload.data) {
         email = payload.data.visitor?.email || payload.data.context?.visitor?.email;
     }
@@ -29,8 +30,6 @@ const extractContext = (payload) => {
         chatId = payload.data.conversation?.id || payload.data.conversation_id;
     }
 
-    // 4. FIX: Handle the specific structure seen in your Render Logs
-    // Structure: payload.context.data.email_id
     if (!email && payload.context?.data) {
         email = payload.context.data.email_id || payload.context.data.email;
     }
@@ -45,15 +44,11 @@ const extractContext = (payload) => {
 router.post('/zoho-widget', async (req, res) => {
     const startTime = Date.now();
     
-    // --- DEBUGGING: Print the FULL structure ---
-    // This will show up in your Render/Ngrok logs so you can see exactly 
-    // what Zoho is sending.
+    // Debugging Log
     console.log("📦 ZOHO RAW PAYLOAD:", JSON.stringify(req.body, null, 2)); 
 
-    // 1. EXTRACT DATA USING SMART HELPER
     const { email, chatId, message } = extractContext(req.body);
     
-    // Identify Handler Type
     let handlerType = req.body.handler;
     if (!handlerType) {
         handlerType = req.body.name ? "action" : "detail";
@@ -63,34 +58,51 @@ router.post('/zoho-widget', async (req, res) => {
 
     try {
         // ============================================================
-        // CASE 1: ACTION HANDLER (Button Clicks)
+        // CASE 1: ACTION HANDLER
         // ============================================================
         if (handlerType === "action") {
             const actionName = req.body.action?.name || req.body.name;
             const actionData = req.body.action?.data || req.body.data || {};
             
             console.log(`⚡ Executing Action: ${actionName}`);
-            const actionResult = await ecommerceManager.executeAction(actionName, actionData);
 
-            await InteractionLog.create({
-                chatId,
-                operatorEmail: req.body.operator?.email || "unknown",
-                actionType: actionName,
-                details: { result: actionResult }
-            });
+            // SPECIAL CASE: "Refresh" should NOT return a banner. 
+            // It should fall through to CASE 2 to re-render the widget.
+            if (actionName === "refresh_widget") {
+                console.log("🔄 Refreshing Widget Data...");
+                // Do nothing here, let code flow down to "DETAIL HANDLER" logic
+            } 
+            // SPECIAL CASE: "Copy Text" (AI Suggestion)
+            else if (actionName === "handle_copy_text") {
+                return res.json({
+                    type: "post_message",
+                    value: actionData.text // This puts text into operator's chat bar
+                });
+            }
+            // STANDARD ACTIONS (Refund, Cancel)
+            else {
+                const actionResult = await ecommerceManager.executeAction(actionName, actionData);
 
-            return res.json({
-                type: "banner",
-                text: actionResult.message || "Action processed",
-                status: actionResult.success ? "success" : "failure"
-            });
+                // Log action asynchronously
+                InteractionLog.create({
+                    chatId,
+                    operatorEmail: req.body.operator?.email || "unknown",
+                    actionType: actionName,
+                    details: { result: actionResult }
+                }).catch(err => console.error("Log Error:", err.message));
+
+                return res.json({
+                    type: "banner",
+                    text: actionResult.message || "Action processed",
+                    status: actionResult.success ? "success" : "failure"
+                });
+            }
         }
 
         // ============================================================
-        // CASE 2: DETAIL HANDLER (Load UI)
+        // CASE 2: DETAIL HANDLER (Load/Reload UI)
         // ============================================================
         
-        // Fetch Data
         const [profile, orders, sentiment, smartReplies, recommendations] = await Promise.all([
             ecommerceManager.getCustomerProfile(email),
             ecommerceManager.getRecentOrders(email),
@@ -99,48 +111,86 @@ router.post('/zoho-widget', async (req, res) => {
             recommendationService.getRecommendationsForVisitor(email)
         ]);
 
-        // UI Construction
-        const metricSection = ui.buildMetricSection("metrics", "Customer Vitals", [
-            { label: "Sentiment", value: `${sentiment.label}` },
-            { label: "LTV", value: `$${profile?.ecommerceProfile?.totalSpend || 0}` },
-            { label: "Orders", value: `${profile?.ecommerceProfile?.orderCount || 0}` }
+        // --- CALCULATION METRICS ---
+        const liveOrderCount = orders ? orders.length : 0;
+        const liveTotalSpend = orders ? orders.reduce((sum, ord) => sum + parseFloat(ord.total), 0) : 0;
+
+        // --- SECTION 1: METRICS ---
+        const metricSection = ui.buildMetricSection("metrics", "CUSTOMER PROFILE", [
+            { label: "Sentiment", value: cleanText(sentiment.label) },
+            { label: "Lifetime Value", value: `$${liveTotalSpend.toFixed(2)}` },
+            { label: "Total Orders", value: `${liveOrderCount}` }
         ]);
 
-        let orderFields = [{ label: "Status", value: "No recent orders" }];
-        if (orders && orders.length > 0) {
-            const last = orders[0];
-            orderFields = [
-                { label: "Order ID", value: last.name },
-                { label: "Date", value: new Date(last.date).toLocaleDateString() },
-                { label: "Status", value: (last.status || "Unknown").toUpperCase() }, 
-                { label: "Items", value: last.items || "N/A" }
-            ];
-        }
-        const orderSection = ui.buildFieldsetSection("last_order", "📦 Last Order Context", orderFields);
+        // --- SECTION 2: ORDER HISTORY (LISTING) ---
+        // Changed from Fieldset to Listing to show multiple orders
+        const orderItems = orders.map(order => ({
+            title: `Order ${order.name}`,
+            text: `${order.date.substring(0, 10)} - ${order.status.toUpperCase()}`,
+            subtext: order.items || "No items",
+            image_url: "https://img.icons8.com/ios-glyphs/60/000000/box.png",
+            actionPayload: { 
+                // In a full app, this would open order details. 
+                // For now, it copies ID to clipboard or just acts as a visual item.
+                text: `Order ID: ${order.name}` 
+            }
+        }));
+        
+        const orderSection = ui.buildListingSection(
+            "order_history", 
+            "RECENT ORDERS", 
+            orderItems.length > 0 ? orderItems : [{ title: "No Orders", text: "Customer has no history", subtext: "" }]
+        );
 
+        // --- SECTION 3: AI SUGGESTIONS ---
+        const replyIcon = "https://img.icons8.com/ios-glyphs/60/000000/chat.png";
         const aiItems = smartReplies.map((reply, index) => ({
-            title: `Suggestion #${index + 1}`,
+            title: `Suggestion ${index + 1}`,
             text: reply, 
-            subtext: "Click to copy",
-            image_url: "https://cdn-icons-png.flaticon.com/512/4712/4712009.png", 
+            subtext: "Click to insert",
+            image_url: replyIcon,
+            // Uses 'handle_copy_text' action we handled above
             actionPayload: { text: reply } 
         }));
-        const aiSection = ui.buildListingSection("ai_replies", "✨ AI Suggestions", aiItems);
+        // We override the action name in the builder manually for this specific section if needed,
+        // or ensure zohoUiBuilder maps 'handle_list_click' to our 'handle_copy_text' logic.
+        // *Hack*: We'll just catch 'handle_list_click' as a copy action if the payload has 'text'.
+        
+        // Let's actually patch the action name dynamically:
+        aiItems.forEach(item => {
+            if(item.action) item.action.name = "handle_copy_text";
+        });
 
-        const recItems = recommendations.map(prod => ({
+        const aiSection = ui.buildListingSection("ai_replies", "AI SMART REPLIES", aiItems);
+
+        // --- SECTION 4: RECOMMENDATIONS ---
+        // Filter: Don't show products user just bought (simple check against last order items)
+        const lastOrderItems = orders.length > 0 ? orders[0].items.toLowerCase() : "";
+        
+        const filteredRecs = recommendations.filter(prod => 
+            !lastOrderItems.includes(prod.title.toLowerCase())
+        );
+
+        const recItems = filteredRecs.map(prod => ({
             title: prod.title,
             text: prod.reason || "Recommended",
-            subtext: prod.price,
-            image_url: prod.image,
+            subtext: `Price: ${prod.price}`,
+            image_url: prod.image || "https://img.icons8.com/ios-glyphs/60/000000/shopping-bag.png",
             actionPayload: { id: prod.productId } 
         }));
-        const recSection = ui.buildListingSection("recommendations", "🔥 Recommended Products", recItems);
+        const recSection = ui.buildListingSection("recommendations", "UPSELL OPPORTUNITIES", recItems);
 
-        // Update with your Live Frontend URL
+        // --- SECTION 5: ACTIONS ---
+        // Added "Cancel/Return" buttons for the LATEST order
         const actions = [
-            ui.createInvokeButton("🔄 Refresh AI Analysis", "refresh_widget", {}, "primary"),
-            ...(orders.length > 0 ? [ui.createInvokeButton("💸 Process Refund", "refund_order", { id: orders[0].id }, "danger")] : []),
-            ui.createLinkButton("🚀 Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}`)
+            ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
+            
+            ...(orders.length > 0 ? [
+                ui.createInvokeButton("Cancel Latest Order", "cancel_order", { id: orders[0].id }, "danger"),
+                ui.createInvokeButton("Return Latest Order", "return_order", { id: orders[0].id }, "default")
+            ] : []),
+
+            ui.createLinkButton("Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}`)
         ];
         const actionSection = ui.buildActionsSection("global_actions", actions);
 
