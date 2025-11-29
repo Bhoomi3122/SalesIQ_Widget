@@ -44,7 +44,7 @@ const extractContext = (payload) => {
 router.post('/zoho-widget', async (req, res) => {
     const startTime = Date.now();
     
-    console.log("📦 ZOHO RAW PAYLOAD:", JSON.stringify(req.body, null, 2)); 
+    // console.log("📦 ZOHO RAW PAYLOAD:", JSON.stringify(req.body, null, 2)); 
 
     const { email, chatId, message } = extractContext(req.body);
     
@@ -63,19 +63,20 @@ router.post('/zoho-widget', async (req, res) => {
             const actionName = req.body.action?.name || req.body.name;
             const actionData = req.body.action?.data || req.body.data || {};
             
-            console.log(`⚡ Executing Action: ${actionName}`);
+            console.log(`⚡ Executing Action: ${actionName}`, actionData);
 
             // SPECIAL CASE: "Refresh" reloads the UI
             if (actionName === "refresh_widget") {
                 console.log("🔄 Refreshing Widget Data...");
                 // Fall through to Detail Handler Logic below to re-render
             } 
-            // SPECIAL CASE: "Click to Insert" (Fix for plain text issue)
-            // We return type 'post_message' to insert text into operator chat
+            // SPECIAL CASE: "Click to Insert" (Fix: Try multiple keys for compatibility)
             else if (actionName === "handle_copy_text") {
                 return res.json({
                     type: "post_message",
-                    text: actionData.text // Changed from 'value' to 'text'
+                    text: actionData.text, // Primary standard
+                    message: actionData.text, // Fallback for some Zoho versions
+                    value: actionData.text // Fallback
                 });
             }
             // LOGGING FOR DASHBOARD ACTIONS
@@ -118,13 +119,12 @@ router.post('/zoho-widget', async (req, res) => {
         ]);
 
         // --- SECTION 2: ORDER HISTORY (LISTING) ---
-        // Showing ALL recent orders so operator has full context
         const orderItems = orders.map(order => ({
             title: `Order ${order.name}`,
             text: `${order.date.substring(0, 10)} | ${order.status.toUpperCase()}`,
             subtext: order.items || "No items",
             image_url: "https://img.icons8.com/ios-glyphs/60/000000/box.png",
-            actionPayload: { text: `Order ID: ${order.name}` } // Clicking copies ID
+            actionPayload: { text: `Order ID: ${order.name}` } 
         }));
         
         const orderSection = ui.buildListingSection(
@@ -143,28 +143,59 @@ router.post('/zoho-widget', async (req, res) => {
             actionPayload: { text: reply } 
         }));
         
-        // Force the action name to our specific handler
         aiItems.forEach(item => {
             if(item.action) item.action.name = "handle_copy_text";
         });
 
         const aiSection = ui.buildListingSection("ai_replies", "AI SMART REPLIES", aiItems);
 
-        // --- SECTION 4: RECOMMENDATIONS ---
-        const lastOrderItems = orders.length > 0 ? orders[0].items.toLowerCase() : "";
-        const filteredRecs = recommendations.filter(prod => 
-            !lastOrderItems.includes(prod.title.toLowerCase())
+        // --- SECTION 4: RECOMMENDATIONS (IMPROVED) ---
+        // 1. Get ALL purchased items string for checking
+        const allPurchasedItems = orders.map(o => o.items).join(", ").toLowerCase();
+        
+        // 2. Filter out products user already bought
+        let filteredRecs = recommendations.filter(prod => 
+            !allPurchasedItems.includes(prod.title.toLowerCase())
         );
 
-        const recItems = filteredRecs.map(prod => ({
+        // 3. Fallback: If no recommendations left, generate category-based fallbacks
+        if (filteredRecs.length === 0) {
+            // Simple Category Logic based on history
+            if (allPurchasedItems.includes("shirt") || allPurchasedItems.includes("hoodie")) {
+                filteredRecs.push({
+                    productId: "fallback_jeans",
+                    title: "Classic Denim Jeans",
+                    price: "49.99",
+                    image: "https://img.icons8.com/ios-glyphs/60/000000/jeans.png",
+                    reason: "Completes the look"
+                });
+            } else if (allPurchasedItems.includes("jeans") || allPurchasedItems.includes("pants")) {
+                 filteredRecs.push({
+                    productId: "fallback_tee",
+                    title: "Cotton Crew Tee",
+                    price: "25.00",
+                    image: "https://img.icons8.com/ios-glyphs/60/000000/t-shirt.png",
+                    reason: "Matches your pants"
+                });
+            } else {
+                 filteredRecs.push({
+                    productId: "fallback_trending",
+                    title: "Trending Accessories",
+                    price: "15.00",
+                    image: "https://img.icons8.com/ios-glyphs/60/000000/star.png",
+                    reason: "Popular with customers like you"
+                });
+            }
+        }
+
+        const recItems = filteredRecs.slice(0, 3).map(prod => ({
             title: prod.title,
             text: prod.reason || "Recommended",
             subtext: `Price: ${prod.price}`,
             image_url: prod.image || "https://img.icons8.com/ios-glyphs/60/000000/shopping-bag.png",
-            actionPayload: { text: `Check out ${prod.title}: ${prod.image}` } // Sending link to chat
+            actionPayload: { text: `Check out ${prod.title}: ${prod.image || ''}` } 
         }));
         
-        // Force action name for products too
         recItems.forEach(item => {
             if(item.action) item.action.name = "handle_copy_text";
         });
@@ -172,7 +203,6 @@ router.post('/zoho-widget', async (req, res) => {
         const recSection = ui.buildListingSection("recommendations", "UPSELL OPPORTUNITIES", recItems);
 
         // --- SECTION 5: ACTIONS ---
-        // Simplified Actions: Removed Cancel/Return (Moved to Full Dashboard)
         const actions = [
             ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
             ui.createLinkButton("Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}&email=${email}`)
