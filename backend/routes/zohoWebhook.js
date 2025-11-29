@@ -29,6 +29,12 @@ const extractContext = (payload) => {
         chatId = payload.data.conversation?.id || payload.data.conversation_id;
     }
 
+    // 4. FIX: Handle the specific structure seen in your Render Logs
+    // Structure: payload.context.data.email_id
+    if (!email && payload.context?.data) {
+        email = payload.context.data.email_id || payload.context.data.email;
+    }
+
     return {
         email: email || "guest@example.com",
         chatId: chatId || "unknown_chat",
