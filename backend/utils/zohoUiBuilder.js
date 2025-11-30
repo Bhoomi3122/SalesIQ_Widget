@@ -2,10 +2,9 @@
  * ZOHO WIDGET UI BUILDER (FINAL PRODUCTION VERSION)
  * ------------------------------------------------------------------
  * Fixes:
- * 1. Ensures ALL sections use 'name' (Fixes Section [0].name issue).
- * 2. Ensures every Button in the 'actions' array contains the mandatory 'id' and 'name' fields 
- * (Fixes response.sections[4].actions[1].name issue).
- * 3. Includes mandatory 'text' property in Listing Items.
+ * 1. REMOVED ILLEGAL 'layout' property from buildActionsSection.
+ * 2. Rewrote buildActionsSection to use the proper 'elements' -> 'buttons' structure.
+ * 3. Simplified Link Button structure to be minimal, based on documentation example.
  */
 
 /**
@@ -75,7 +74,7 @@ const buildListingSection = (id, title, items) => {
                     label: "Select",
                     type: "invoke.function",
                     id: "handle_copy_text", 
-                    name: "handle_copy_text", // MANDATORY: Required for invoke function
+                    name: "handle_copy_text", 
                     data: {
                         payload: item.actionPayload
                     }
@@ -86,20 +85,21 @@ const buildListingSection = (id, title, items) => {
 };
 
 /**
- * 5. ACTION BUTTONS SECTION
- * This uses the 'info' layout to hold the buttons.
+ * 5. ACTION BUTTONS SECTION (CRITICALLY FIXED)
+ * Uses the correct SalesIQ structure (elements array with type: "buttons").
  */
 const buildActionsSection = (id, buttons) => {
     return {
         name: id,
         type: "section",
-        title: "Actions",
-
-        // IMPORTANT: replace layout + actions with elements[] (SalesIQ format)
+        title: "Actions", 
+        // ❌ Removed 'layout: "info"'
+        
+        // ✅ Correct structure for buttons in SalesIQ widget sections
         elements: [
             {
                 type: "buttons",
-                buttons: buttons
+                buttons: buttons // Array of button objects defined below
             }
         ]
     };
@@ -110,13 +110,12 @@ const buildActionsSection = (id, buttons) => {
 
 /**
  * 6. Invoke Button (Standard Action)
- * Requires 'name' for the function to be invoked.
  */
 const createInvokeButton = (label, functionName, payload = {}, style = "primary") => {
     return {
         type: "invoke.function",
         label: label,
-        id: functionName, // MANDATORY
+        id: functionName, 
         name: functionName, // MANDATORY: Function name for backend controller
         data: payload,
         style: style
@@ -124,18 +123,19 @@ const createInvokeButton = (label, functionName, payload = {}, style = "primary"
 };
 
 /**
- * 7. Link Button — Correct structure based on documentation analysis.
- * Requires 'id' and 'name' for the actions array parser.
+ * 7. Link Button — FINAL FIX: Using simple URL structure.
+ * Note: Zoho requires 'id' for the parent 'buttons' array, and 'url' at the root.
  */
 const createLinkButton = (label, url) => {
     return {
         label: label,
         type: "open.url",
-        id: "open_full_dashboard",   // mandatory unique id
-        url: url                     // MUST be top-level, not inside data{}
+        id: "open_full_dashboard", // MANDATORY: Unique ID for the parent buttons array
+        
+        // ✅ CORRECT STRUCTURE: URL is a top-level key for open.url type
+        url: url, 
     };
 };
-
 
 module.exports = {
     buildWidgetResponse,
