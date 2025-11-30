@@ -74,8 +74,7 @@ const buildActionsSection = (id, buttons) => {
         name: id,
         type: "section",
         layout: "info",
-        title: "Actions",
-        data: [],
+        title: "actions",
         actions: buttons
     };
 };
