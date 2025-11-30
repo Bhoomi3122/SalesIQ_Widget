@@ -65,55 +65,51 @@ router.post('/zoho-widget', async (req, res) => {
             
             console.log(`⚡ Executing Action: ${actionName}`, actionData);
 
-            // SPECIAL CASE: "Open Full Dashboard" (The URL Click)
+            // --- Log the action before any branching logic that exits the function ---
+            // This ensures every click is logged even if the outcome is just opening a URL
+            await InteractionLog.create({
+                chatId,
+                operatorEmail: req.body.operator?.email || "unknown",
+                actionType: actionName,
+                details: { input: actionData }
+            }).catch(e => console.error("Interaction Log Failed:", e.message));
+
+            // 1. URL OPENING ACTION (Highest Priority Exit)
             if (actionName === "open_url_action") {
-                 // FIX: Return silent 200 OK status. This is CRUCIAL 
-                 // to prevent Zoho from showing "Action Logged" banner 
-                 // and forces the client to open the URL.
-                await InteractionLog.create({
-                    chatId,
-                    operatorEmail: req.body.operator?.email || "unknown",
-                    actionType: actionName,
-                    details: { input: actionData }
-                });
-                return res.status(200).send({ message: "URL opening acknowledged." });
+                // If Zoho receives 200 OK status immediately, it performs the client-side URL opening.
+                // This prevents the generic banner from overriding the link action.
+                return res.status(200).send({ message: "URL command acknowledged." });
             }
-            
-            // SPECIAL CASE: "Refresh" reloads the UI
-            if (actionName === "refresh_widget") {
-                console.log("🔄 Refreshing Widget Data...");
-                // Fall through to Detail Handler Logic below to re-render the UI
-            } 
-            // SPECIAL CASE: "Click to Insert" 
+
+            // 2. TEXT INJECTION ACTION
             else if (actionName === "handle_copy_text") {
                 return res.json({
                     type: "post_message",
-                    text: actionData.text,
-                    message: actionData.text,
-                    value: actionData.text
+                    text: actionData.text
                 });
             }
-            // LOGGING FOR OTHER ACTIONS (Currently empty since we moved cancel/return)
+            
+            // 3. REFRESH WIDGET ACTION
+            else if (actionName === "refresh_widget") {
+                // Fall through to the Detail Handler to rebuild the UI below (Case 2)
+                console.log("🔄 Refreshing Widget Data...");
+            }
+            
+            // 4. DEFAULT FALLBACK (For unknown or placeholder actions)
             else {
-                await InteractionLog.create({
-                    chatId,
-                    operatorEmail: req.body.operator?.email || "unknown",
-                    actionType: actionName,
-                    details: { input: actionData }
-                });
-                
                 return res.json({
                     type: "banner",
-                    text: "Action Logged (Button Placeholder)",
+                    text: `Action ${actionName} handled.`,
                     status: "success"
                 });
             }
         }
 
         // ============================================================
-        // CASE 2: DETAIL HANDLER (Load/Reload UI)
+        // CASE 2: DETAIL/RELOAD HANDLER (Load/Reload UI)
         // ============================================================
         
+        // --- Fetch Intelligence ---
         const [profile, orders, sentiment, smartReplies, recommendations] = await Promise.all([
             ecommerceManager.getCustomerProfile(email),
             ecommerceManager.getRecentOrders(email),
@@ -132,7 +128,7 @@ router.post('/zoho-widget', async (req, res) => {
             { label: "Total Orders", value: `${liveOrderCount}` }
         ]);
 
-        // --- SECTION 2: ORDER HISTORY (LISTING) ---
+        // --- SECTION 2: ORDER HISTORY ---
         const orderItems = orders.map(order => ({
             title: `Order ${order.name}`,
             text: `${order.date.substring(0, 10)} | ${order.status.toUpperCase()}`,
@@ -197,7 +193,6 @@ router.post('/zoho-widget', async (req, res) => {
         // --- SECTION 5: ACTIONS ---
         const actions = [
             ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
-            // This button now correctly uses the 'open_url_action' name and relies on the 200 OK status handler above.
             ui.createLinkButton("Open Full Dashboard", `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`)
         ];
         const actionSection = ui.buildActionsSection("global_actions", actions);
