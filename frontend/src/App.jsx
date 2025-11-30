@@ -15,7 +15,7 @@ import ReturnOrderModal from "./components/actions/ReturnOrderModal";
 import TrackOrderModal from "./components/actions/TrackOrderModal";
 import Card from "./components/ui/Card"; 
 import Loader from "./components/ui/Loader";
-import EmptyState from "./components/ui/EmptyState"; 
+import EmptyState from "./components/EmptyState"; 
 
 import "./styles/global.css";
 import "./styles/dashboard.css";

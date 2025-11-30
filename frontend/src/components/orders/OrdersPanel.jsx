@@ -5,22 +5,18 @@ import CancelOrderModal from '../actions/CancelOrderModal';
 import ReturnOrderModal from '../actions/ReturnOrderModal';
 import TrackOrderModal from '../actions/TrackOrderModal';
 import Loader from '../ui/Loader';
-import EmptyState from '../ui/EmptyState';
+import EmptyState from '../EmptyState'; // Corrected Path
 import Button from '../ui/Button';
 
-// NOTE: Ensure this hook exists or replace with direct prop if fetching at Layout level
-import { useOrders } from '../../hooks/useOrders'; 
+// NOTE: No local data fetching hook is needed here! Data comes from props.
 
 /**
  * ORDERS PANEL
  * ----------------------------------------------------
  * The main list container. 
- * Manages which Modal is open (Cancel/Return/Track).
+ * Manages which Modal is open (Cancel/Return/Track) and receives data via props.
  */
-const OrdersPanel = ({ visitorId }) => {
-  // Fetch data (or receive as props)
-  const { orders, loading, error, refreshOrders } = useOrders(visitorId);
-  
+const OrdersPanel = ({ orders, loading, error, refreshOrders, onCancel, onReturn, onTrack }) => {
   // Modal State: Store the *entire order object* being acted upon
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalType, setModalType] = useState(null); // 'cancel' | 'return' | 'track'
@@ -36,16 +32,16 @@ const OrdersPanel = ({ visitorId }) => {
     setModalType(null);
   };
 
-  const handleActionConfirm = async (data) => {
-    console.log(`Executing ${modalType} on Order #${selectedOrder.name}`, data);
-    // In a real app, you'd call an API here: await api.cancelOrder(selectedOrder.id, data.reason);
-    
-    closeModal();
-    refreshOrders(); // Refresh list to show new status
+  // This function is now mostly controlled by App.jsx, but we keep the logic structure.
+  const handleActionClick = (order, type) => {
+    // These calls map the OrderCard buttons to the Modal state
+    if (type === 'cancel') onCancel(order);
+    if (type === 'return') onReturn(order);
+    if (type === 'track') onTrack(order);
   };
-
+  
   // RENDER LOGIC
-  if (loading) return <div className="panel-loading"><Loader /></div>;
+  if (loading) return <div className="panel-loading"><Loader text="Loading Orders..." /></div>;
   
   if (error) return (
     <div className="panel-error">
@@ -124,7 +120,7 @@ const OrdersPanel = ({ visitorId }) => {
       {!orders || orders.length === 0 ? (
         <EmptyState 
           title="No Orders Found" 
-          message="This customer hasn't placed any orders yet."
+          subtitle="This customer hasn't placed any orders yet." // Fixed prop name to subtitle
         />
       ) : (
         <div className="orders-grid">
@@ -132,35 +128,21 @@ const OrdersPanel = ({ visitorId }) => {
             <OrderCard 
               key={order.id} 
               order={order}
-              onCancel={(o) => openModal(o, 'cancel')}
-              onReturn={(o) => openModal(o, 'return')}
-              onTrack={(o) => openModal(o, 'track')}
+              // Pass event handlers up to App.jsx to open the shared modals
+              onCancel={() => handleActionClick(order, 'cancel')}
+              onReturn={() => handleActionClick(order, 'return')}
+              onTrack={() => handleActionClick(order, 'track')}
             />
           ))}
         </div>
       )}
-
-      {/* --- MODALS --- */}
       
-      <CancelOrderModal 
-        visible={modalType === 'cancel'} 
-        order={selectedOrder} 
-        onClose={closeModal} 
-        onConfirm={(reason) => handleActionConfirm({ reason })} 
-      />
-
-      <ReturnOrderModal 
-        visible={modalType === 'return'} 
-        order={selectedOrder} 
-        onClose={closeModal} 
-        onConfirm={(data) => handleActionConfirm(data)} 
-      />
-
-      <TrackOrderModal 
-        visible={modalType === 'track'} 
-        order={selectedOrder} 
-        onClose={closeModal} 
-      />
+      {/* Modals are handled by the parent App.jsx, but we keep the placeholders 
+          to avoid errors if they are conditionally imported. (Cleanest practice is to 
+          remove them here but App.jsx requires them for routing).
+          We remove the modal rendering logic here entirely since it's in App.jsx.
+          
+      */}
 
     </div>
   );
