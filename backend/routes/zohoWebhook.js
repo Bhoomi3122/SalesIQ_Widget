@@ -1,18 +1,21 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-const ecommerceManager = require('../services/ecommerceManager');
-const aiService = require('../services/aiService');
-const recommendationService = require('../services/recommendationService');
-const ui = require('../utils/zohoUiBuilder');
-const InteractionLog = require('../models/InteractionLog');
+const ecommerceManager = require("../services/ecommerceManager");
+const aiService = require("../services/aiService");
+const recommendationService = require("../services/recommendationService");
+const ui = require("../utils/zohoUiBuilder");
+const InteractionLog = require("../models/InteractionLog");
 
 // =======================
 // CLEAN TEXT HELPER
 // =======================
 const cleanText = (text) => {
     if (!text) return "";
-    return text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+    return text.replace(
+        /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g,
+        ""
+    ).trim();
 };
 
 // =======================
@@ -26,7 +29,7 @@ const extractContext = (payload) => {
     if (!chatId) chatId = payload.context?.conversation_id;
 
     if (!email && payload.data) {
-        email = payload.data.visitor?.email || payload.data.context?.visitor?.email;
+        email = payload.data.visitor?.email || payload.data?.context?.visitor?.email;
     }
     if (!chatId && payload.data) {
         chatId = payload.data.conversation?.id || payload.data.conversation_id;
@@ -46,172 +49,169 @@ const extractContext = (payload) => {
 // ============================================================
 // MAIN WIDGET ENTRY
 // ============================================================
-router.post('/zoho-widget', async (req, res) => {
+router.post("/zoho-widget", async (req, res) => {
     const startTime = Date.now();
 
     console.log("📦 FULL RAW ZOHO PAYLOAD:");
     console.log(JSON.stringify(req.body, null, 2));
 
     const { email, chatId, message } = extractContext(req.body);
+    const handlerType = req.body.handler || (req.body.action ? "action" : "detail");
 
-    let handlerType = req.body.handler;
-    if (!handlerType) handlerType = req.body.name ? "action" : "detail";
-
-    console.log(`🔔 Webhook Processing: ${handlerType} | Chat: ${chatId} | Visitor: ${email}`);
+    console.log(
+        `🔔 Webhook Processing: ${handlerType} | Chat: ${chatId} | Visitor: ${email}`
+    );
 
     try {
-
         // ============================================================
-        // CASE 1: ACTION HANDLER
+        // CASE 1 — ACTION HANDLER
         // ============================================================
         if (handlerType === "action") {
-
             console.log("\n============================");
             console.log("🔥 ACTION HANDLER TRIGGERED");
             console.log("============================\n");
 
-            const actionName = req.body.action?.name || req.body.name;
-            const actionData = req.body.action?.data || req.body.data || {};
+            const actionId = req.body.action?.id;
+            const actionData = req.body.action?.data || {};
 
-            console.log("🎯 ACTION NAME:", actionName);
+            console.log("🎯 ACTION ID:", actionId);
             console.log("📦 ACTION DATA:", JSON.stringify(actionData, null, 2));
 
-            // Log in DB
             await InteractionLog.create({
                 chatId,
                 operatorEmail: req.body.operator?.email || "unknown",
-                actionType: actionName,
+                actionType: actionId,
                 details: { input: actionData }
-            }).catch(err => console.error("⚠️ Interaction Log Failed:", err.message));
+            }).catch((err) =>
+                console.error("⚠️ Interaction Log Failed:", err.message)
+            );
 
             // ============================================================
-            // 🔥 OPEN URL ACTION (THIS IS THE BUTTON YOU CARE ABOUT)
+            // 🔥 OPEN URL BUTTON HANDLER
+            // (from createLinkButton → id = "open_dashboard")
             // ============================================================
-            if (actionName === "open_url_action") {
-
-                console.log("\n🚨 open_url_action DETECTED");
+            if (actionId === "open_dashboard") {
+                console.log("\n🚨 open_dashboard BUTTON CLICKED");
                 console.log("🔍 Raw action data:", actionData);
 
-                const urlFromZoho = actionData?.url;
-                const fallbackUrl = `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`;
-                const finalUrl = urlFromZoho || fallbackUrl;
+                const url = actionData.web; // correct Zoho field
+                const fallback = `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`;
 
-                console.log("🌐 URL FROM ZOHO:", urlFromZoho);
-                console.log("🌐 FALLBACK URL:", fallbackUrl);
-                console.log("🌐 FINAL URL TO SEND:", finalUrl);
+                const finalUrl = url || fallback;
 
-                const payload = {
+                console.log("🌐 URL FROM ZOHO:", url);
+                console.log("🌐 USING FINAL URL:", finalUrl);
+
+                return res.json({
                     type: "open_url",
                     url: finalUrl
-                };
-
-                console.log("📤 SENDING RESPONSE:", payload);
-
-                return res.json(payload);
-            }
-
-            // ============================================================
-            // TEXT INJECTION
-            // ============================================================
-            if (actionName === "handle_copy_text") {
-                console.log("✍ TEXT INJECTION:", actionData.text);
-                return res.json({
-                    type: "post_message",
-                    text: actionData.text
                 });
             }
 
             // ============================================================
-            // REFRESH HANDLER
+            // SMART REPLY — COPY TEXT
+            // ID = "handle_copy_text"
             // ============================================================
-            if (actionName === "refresh_widget") {
-                console.log("🔄 REFRESH WIDGET TRIGGERED");
+            if (actionId === "handle_copy_text") {
+                const replyText = actionData.payload?.text;
+                console.log("✍ SMART REPLY CLICKED:", replyText);
+
+                return res.json({
+                    type: "post_message",
+                    text: replyText
+                });
             }
 
             // ============================================================
-            // DEFAULT FALLBACK
+            // REFRESH BUTTON HANDLER
             // ============================================================
-            console.log("ℹ️ UNKNOWN ACTION - sending banner");
+            if (actionId === "refresh_widget") {
+                console.log("🔄 Refresh widget triggered");
+            }
+
+            console.log("ℹ️ Unknown action, returning banner");
             return res.json({
                 type: "banner",
-                text: `Action ${actionName} handled.`,
-                status: "success"
+                status: "success",
+                text: `Action ${actionId} handled.`
             });
         }
 
         // ============================================================
-        // CASE 2: DETAIL / INITIAL LOAD
+        // CASE 2 — UI RENDER
         // ============================================================
         console.log("📥 Loading visitor dashboard UI...");
 
-        const [profile, orders, sentiment, smartReplies, recommendations] = await Promise.all([
-            ecommerceManager.getCustomerProfile(email),
-            ecommerceManager.getRecentOrders(email),
-            aiService.analyzeSentiment(message),
-            aiService.generateSmartReplies(message, { email }),
-            recommendationService.getRecommendationsForVisitor(email)
-        ]);
+        const [profile, orders, sentiment, smartReplies, recommendations] =
+            await Promise.all([
+                ecommerceManager.getCustomerProfile(email),
+                ecommerceManager.getRecentOrders(email),
+                aiService.analyzeSentiment(message),
+                aiService.generateSmartReplies(message, { email }),
+                recommendationService.getRecommendationsForVisitor(email)
+            ]);
 
         console.log("📊 Loaded customer insights.");
 
-        const liveOrderCount = orders ? orders.length : 0;
-        const liveTotalSpend = orders ? orders.reduce((sum, ord) => sum + parseFloat(ord.total), 0) : 0;
+        const liveOrderCount = orders?.length || 0;
+        const totalSpend = orders
+            ? orders.reduce((sum, o) => sum + parseFloat(o.total), 0)
+            : 0;
 
         const metricSection = ui.buildMetricSection("metrics", "CUSTOMER VITALS", [
             { label: "Sentiment", value: cleanText(sentiment.label) },
-            { label: "LTV", value: `$${liveTotalSpend.toFixed(2)}` },
+            { label: "LTV", value: `$${totalSpend.toFixed(2)}` },
             { label: "Total Orders", value: `${liveOrderCount}` }
         ]);
-
-        const orderItems = orders.map(order => ({
-            title: `Order ${order.name}`,
-            text: `${order.date.substring(0, 10)} | ${order.status.toUpperCase()}`,
-            subtext: order.items || "No items",
-            image_url: "https://img.icons8.com/ios-glyphs/60/000000/box.png",
-            actionPayload: { text: `Order ID: ${order.name}` }
-        }));
 
         const orderSection = ui.buildListingSection(
             "order_history",
             "RECENT ORDER HISTORY",
-            orderItems.length > 0 ? orderItems : [{ title: "No Orders", text: "Customer has no history", subtext: "" }]
+            orders?.map((o) => ({
+                title: `Order ${o.name}`,
+                text: `${o.date.substring(0, 10)} | ${o.status.toUpperCase()}`,
+                subtext: o.items || "",
+                image_url: "https://img.icons8.com/ios-glyphs/60/000000/box.png",
+                actionPayload: { text: `Order ID: ${o.name}` }
+            })) || []
         );
 
-        const replyIcon = "https://img.icons8.com/ios-glyphs/60/000000/chat.png";
-        const aiItems = smartReplies.map((reply, index) => ({
-            title: `Suggestion ${index + 1}`,
-            text: reply,
-            subtext: "Click to insert",
-            image_url: replyIcon,
-            actionPayload: { text: reply }
-        }));
-
-        const aiSection = ui.buildListingSection("ai_replies", "AI SMART REPLIES", aiItems);
-
-        const allPurchasedItems = orders.map(o => o.items).join(", ").toLowerCase();
-        let filteredRecs = recommendations.filter(prod =>
-            !allPurchasedItems.includes(prod.title.toLowerCase())
+        const aiSection = ui.buildListingSection(
+            "ai_replies",
+            "AI SMART REPLIES",
+            smartReplies.map((text) => ({
+                title: "AI Suggestion",
+                text,
+                image_url:
+                    "https://img.icons8.com/ios-glyphs/60/000000/chat.png",
+                actionPayload: { text }
+            }))
         );
 
-        const recItems = filteredRecs.slice(0, 3).map(prod => ({
-            title: prod.title,
-            text: prod.reason || "Recommended",
-            subtext: `Price: ${prod.price}`,
-            image_url: prod.image || "https://img.icons8.com/ios-glyphs/60/000000/shopping-bag.png",
-            actionPayload: { text: `Check out ${prod.title}: ${prod.image || ''}` }
-        }));
-
-        const recSection = ui.buildListingSection("recommendations", "UPSELL OPPORTUNITIES", recItems);
+        const recSection = ui.buildListingSection(
+            "recommendations",
+            "UPSELL OPPORTUNITIES",
+            recommendations.map((prod) => ({
+                title: prod.title,
+                text: prod.reason || "Recommended",
+                subtext: `Price: ${prod.price}`,
+                image_url: prod.image,
+                actionPayload: { text: `Check ${prod.title}` }
+            }))
+        );
 
         const actions = [
-            ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
+            ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}),
             ui.createLinkButton(
                 "Open Full Dashboard",
                 `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`
             )
         ];
 
-        const actionSection = ui.buildActionsSection("global_actions", actions);
+        const actionSection = ui.buildActionsSection(
+            "global_actions",
+            actions
+        );
 
         const finalResponse = ui.buildWidgetResponse([
             metricSection,
@@ -223,13 +223,18 @@ router.post('/zoho-widget', async (req, res) => {
 
         console.log(`✅ Widget UI Built in ${Date.now() - startTime}ms`);
         return res.json(finalResponse);
-
     } catch (err) {
         console.error("❌ Widget Error:", err);
-        return res.json(ui.buildWidgetResponse([
-            ui.buildMetricSection("error", "System Alert", [{ label: "Status", value: "Error" }]),
-            ui.buildFieldsetSection("error_details", "Debug Info", [{ label: "Message", value: "Check server logs." }])
-        ]));
+        return res.json(
+            ui.buildWidgetResponse([
+                ui.buildMetricSection("error", "System Error", [
+                    { label: "Status", value: "Error" }
+                ]),
+                ui.buildFieldsetSection("error_details", "Debug Info", [
+                    { label: "Message", value: err.message || "Unknown error" }
+                ])
+            ])
+        );
     }
 });
 

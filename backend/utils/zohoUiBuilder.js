@@ -1,18 +1,17 @@
 /**
- * ZOHO WIDGET UI BUILDER (FINAL FIXED VERSION)
- * -------------------------------------------------------------
- * MAIN FIX:
- * createLinkButton MUST store URL inside `data: { url }`
- * because SalesIQ sends:
- * 
- * action: {
- *    name: "open_url_action",
- *    data: { url: "https://..." }
- * }
+ * ZOHO SALESIQ WIDGET UI BUILDER (FINAL VERIFIED VERSION)
+ * ---------------------------------------------------------
+ * CORRECT according to Zoho Widget Schema:
  *
- * Without this, backend receives {}, causing the dashboard button to fail.
+ * - Buttons MUST be inside a section with:  type: "buttons"
+ * - Buttons MUST have: label, type, id, data
+ * - open.url buttons MUST have: data.web
+ * - invoke.function buttons MUST have: data.name
  */
 
+//
+// 1. WRAP ALL SECTIONS
+//
 const buildWidgetResponse = (sections) => {
     return {
         type: "widget_detail",
@@ -21,6 +20,9 @@ const buildWidgetResponse = (sections) => {
     };
 };
 
+//
+// 2. METRIC SECTION
+//
 const buildMetricSection = (id, title, metrics) => {
     return {
         name: id,
@@ -34,6 +36,9 @@ const buildMetricSection = (id, title, metrics) => {
     };
 };
 
+//
+// 3. FIELDSET SECTION
+//
 const buildFieldsetSection = (id, title, fields) => {
     return {
         name: id,
@@ -48,6 +53,9 @@ const buildFieldsetSection = (id, title, fields) => {
     };
 };
 
+//
+// 4. LISTING SECTION
+//
 const buildListingSection = (id, title, items) => {
     return {
         name: id,
@@ -59,51 +67,66 @@ const buildListingSection = (id, title, items) => {
             text: item.text || item.subtext || "View Details",
             subtext: item.subtext || "",
             image: item.image_url || "",
+            
+            // For clickable smart replies:
             actions: item.actionPayload ? [{
+                label: "Use",
                 type: "invoke.function",
-                name: "handle_copy_text",
-                data: item.actionPayload
+                id: "handle_copy_text",
+                data: {
+                    name: "handle_copy_text",
+                    payload: item.actionPayload
+                }
             }] : []
-
         }))
     };
 };
 
+//
+// 5. ACTION BUTTONS SECTION (THE IMPORTANT ONE)
+// OFFICIAL ZOHO SCHEMA:
+// {
+//   name: "...",
+//   type: "buttons",
+//   buttons: [ { ... }, ... ]
+// }
+//
 const buildActionsSection = (id, buttons) => {
     return {
         name: id,
-        type: "section",
-        title: "Actions",
-        layout: "actions",   // Supported layout for buttons
-        data: [],            // ✔ Mandatory (Zoho requires it)
-        actions: buttons     // ✔ Where your invoke/link buttons go
+        type: "buttons",    // ✔ OFFICIAL Zoho Type
+        buttons: buttons    // ✔ List of button objects
     };
 };
 
-
-const createInvokeButton = (label, functionName, payload = {}, style = "primary") => {
+//
+// 6. INVOKE FUNCTION BUTTON
+//
+const createInvokeButton = (label, functionName, payload = {}) => {
     return {
+        label: label,
         type: "invoke.function",
-        label,
-        name: functionName,
-        data: payload,
-        style
+        id: functionName,       // mandatory unique id
+        data: {
+            name: functionName,
+            payload: payload
+        }
     };
 };
 
-/**
- * FINAL FIX ✔✔
- * - SalesIQ requires link buttons to be type: "button"
- * - Backend expects action.name = "open_url_action"
- * - URL must be inside data: { url: "..." }
- */
+//
+// 7. OPEN URL BUTTON — FINAL CORRECT VERSION
+//
 const createLinkButton = (label, url) => {
     return {
-        type: "button",          // Zoho treats this as a clickable action
-        name: "open_url_action", // Backend matches this
         label: label,
+        type: "open.url",              // ✔ Zoho correct type
+        id: "open_dashboard",          // ✔ MUST be unique
         data: {
-            url: url             // CRITICAL FIX ✔
+            web: url,                  // ✔ REQUIRED (Zoho uses this)
+            windows: url,
+            iOS: url,
+            android: url
         }
     };
 };
