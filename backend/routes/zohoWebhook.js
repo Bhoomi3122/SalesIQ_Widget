@@ -65,21 +65,35 @@ router.post('/zoho-widget', async (req, res) => {
             
             console.log(`⚡ Executing Action: ${actionName}`, actionData);
 
+            // SPECIAL CASE: "Open Full Dashboard" (The URL Click)
+            if (actionName === "open_url_action") {
+                 // FIX: Return silent 200 OK status. This is CRUCIAL 
+                 // to prevent Zoho from showing "Action Logged" banner 
+                 // and forces the client to open the URL.
+                await InteractionLog.create({
+                    chatId,
+                    operatorEmail: req.body.operator?.email || "unknown",
+                    actionType: actionName,
+                    details: { input: actionData }
+                });
+                return res.status(200).send({ message: "URL opening acknowledged." });
+            }
+            
             // SPECIAL CASE: "Refresh" reloads the UI
             if (actionName === "refresh_widget") {
                 console.log("🔄 Refreshing Widget Data...");
-                // Fall through to Detail Handler Logic below to re-render
+                // Fall through to Detail Handler Logic below to re-render the UI
             } 
-            // SPECIAL CASE: "Click to Insert" (Fix: Try multiple keys for compatibility)
+            // SPECIAL CASE: "Click to Insert" 
             else if (actionName === "handle_copy_text") {
                 return res.json({
                     type: "post_message",
-                    text: actionData.text, // Primary standard
-                    message: actionData.text, // Fallback for some Zoho versions
-                    value: actionData.text // Fallback
+                    text: actionData.text,
+                    message: actionData.text,
+                    value: actionData.text
                 });
             }
-            // LOGGING FOR DASHBOARD ACTIONS
+            // LOGGING FOR OTHER ACTIONS (Currently empty since we moved cancel/return)
             else {
                 await InteractionLog.create({
                     chatId,
@@ -90,7 +104,7 @@ router.post('/zoho-widget', async (req, res) => {
                 
                 return res.json({
                     type: "banner",
-                    text: "Action Logged",
+                    text: "Action Logged (Button Placeholder)",
                     status: "success"
                 });
             }
@@ -149,42 +163,20 @@ router.post('/zoho-widget', async (req, res) => {
 
         const aiSection = ui.buildListingSection("ai_replies", "AI SMART REPLIES", aiItems);
 
-        // --- SECTION 4: RECOMMENDATIONS (IMPROVED) ---
-        // 1. Get ALL purchased items string for checking
+        // --- SECTION 4: RECOMMENDATIONS ---
         const allPurchasedItems = orders.map(o => o.items).join(", ").toLowerCase();
         
-        // 2. Filter out products user already bought
         let filteredRecs = recommendations.filter(prod => 
             !allPurchasedItems.includes(prod.title.toLowerCase())
         );
 
-        // 3. Fallback: If no recommendations left, generate category-based fallbacks
         if (filteredRecs.length === 0) {
-            // Simple Category Logic based on history
             if (allPurchasedItems.includes("shirt") || allPurchasedItems.includes("hoodie")) {
-                filteredRecs.push({
-                    productId: "fallback_jeans",
-                    title: "Classic Denim Jeans",
-                    price: "49.99",
-                    image: "https://img.icons8.com/ios-glyphs/60/000000/jeans.png",
-                    reason: "Completes the look"
-                });
+                filteredRecs.push({ productId: "fallback_jeans", title: "Classic Denim Jeans", price: "49.99", image: "https://img.icons8.com/ios-glyphs/60/000000/jeans.png", reason: "Completes the look" });
             } else if (allPurchasedItems.includes("jeans") || allPurchasedItems.includes("pants")) {
-                 filteredRecs.push({
-                    productId: "fallback_tee",
-                    title: "Cotton Crew Tee",
-                    price: "25.00",
-                    image: "https://img.icons8.com/ios-glyphs/60/000000/t-shirt.png",
-                    reason: "Matches your pants"
-                });
+                 filteredRecs.push({ productId: "fallback_tee", title: "Cotton Crew Tee", price: "25.00", image: "https://img.icons8.com/ios-glyphs/60/000000/t-shirt.png", reason: "Matches your pants" });
             } else {
-                 filteredRecs.push({
-                    productId: "fallback_trending",
-                    title: "Trending Accessories",
-                    price: "15.00",
-                    image: "https://img.icons8.com/ios-glyphs/60/000000/star.png",
-                    reason: "Popular with customers like you"
-                });
+                 filteredRecs.push({ productId: "fallback_trending", title: "Trending Accessories", price: "15.00", image: "https://img.icons8.com/ios-glyphs/60/000000/star.png", reason: "Popular with customers like you" });
             }
         }
 
@@ -205,6 +197,7 @@ router.post('/zoho-widget', async (req, res) => {
         // --- SECTION 5: ACTIONS ---
         const actions = [
             ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
+            // This button now correctly uses the 'open_url_action' name and relies on the 200 OK status handler above.
             ui.createLinkButton("Open Full Dashboard", `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`)
         ];
         const actionSection = ui.buildActionsSection("global_actions", actions);
