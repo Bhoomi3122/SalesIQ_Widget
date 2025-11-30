@@ -1,10 +1,9 @@
 /**
  * ZOHO WIDGET UI BUILDER (FINAL PRODUCTION VERSION)
  * ------------------------------------------------------------------
- * fixes:
- * 1. Swapped 'id' property to 'name' (Zoho Schema Requirement).
- * 2. Added mandatory 'text' property to Listing Items (Prevents crash).
- * 3. Added mandatory 'name' property to Link Buttons (Fixes current crash).
+ * Fixes:
+ * 1. Ensures ALL sections use 'name'.
+ * 2. Ensures Link Button provides the MANDATORY 'name' field, resolving the final UI error.
  */
 
 /**
@@ -14,7 +13,7 @@
 const buildWidgetResponse = (sections) => {
     return {
         type: "widget_detail",
-        platform: "web", 
+        platform: "web",
         sections: sections
     };
 };
@@ -54,7 +53,7 @@ const buildFieldsetSection = (id, title, fields) => {
 
 /**
  * 4. LISTING SECTION
- * Only modifying the action → actions[] as per Zoho spec.
+ * Note: Listing section buttons use 'id' as the unique key, as per the documentation's example structure.
  */
 const buildListingSection = (id, title, items) => {
     return {
@@ -68,14 +67,13 @@ const buildListingSection = (id, title, items) => {
             subtext: item.subtext || "",
             image: item.image_url || "",
 
-            // FIXED FOR ZOHO SPEC:
             actions: item.actionPayload 
                 ? [{
                     label: "Select",
                     type: "invoke.function",
-                    id: "handle_copy_text",
+                    id: "handle_copy_text", // Unique ID for this button instance
                     data: {
-                        name: "handle_copy_text",
+                        name: "handle_copy_text", 
                         payload: item.actionPayload
                     }
                 }]
@@ -86,13 +84,12 @@ const buildListingSection = (id, title, items) => {
 
 /**
  * 5. ACTION BUTTONS SECTION
- * (KEEPING EXACT same structure, only the button objects are fixed)
  */
 const buildActionsSection = (id, buttons) => {
     return {
         name: id,
         type: "section",
-        layout: "info",
+        layout: "info", // Correct layout for buttons array
         title: "Actions",
         data: [],
         actions: buttons
@@ -102,29 +99,32 @@ const buildActionsSection = (id, buttons) => {
 // --- BUTTON HELPERS ---
 
 /**
- * 6. Invoke Button (no change)
+ * 6. Invoke Button (Standard Action)
+ * Requires 'name' for the function to be invoked.
  */
 const createInvokeButton = (label, functionName, payload = {}, style = "primary") => {
     return {
         type: "invoke.function",
         label: label,
-        name: functionName,
+        name: functionName, // MANDATORY: Function name for backend controller
         data: payload,
         style: style
     };
 };
 
 /**
- * 7. Link Button — FIXED to Zoho's proper open.url schema
- *    ONLY this part changed.
+ * 7. Link Button — CRITICAL FIX: Add mandatory 'id' AND 'name' for reliability.
+ * Note: open.url actions typically require the 'data' structure shown below.
  */
 const createLinkButton = (label, url) => {
     return {
         label: label,
         type: "open.url",
-        id: "open_dashboard",    // Zoho requires unique ID field
+        // CRITICAL FIX: Adding 'id' and 'name' which is required for items in the section actions array.
+        id: "open_full_dashboard", 
+        name: "open_url_action", // MANDATORY: This is what the action handler looks for!
         data: {
-            web: url,            // Zoho requires .data.web for URL
+            web: url,
             windows: url,
             iOS: url,
             android: url
