@@ -52,8 +52,8 @@ const extractContext = (payload) => {
 router.post("/zoho-widget", async (req, res) => {
     const startTime = Date.now();
 
-    // console.log("📦 FULL RAW ZOHO PAYLOAD:");
-    // console.log(JSON.stringify(req.body, null, 2));
+    console.log("📦 FULL RAW ZOHO PAYLOAD:");
+    console.log(JSON.stringify(req.body, null, 2));
 
     const { email, chatId, message } = extractContext(req.body);
     // Determine handler type: 'action' if action name exists, otherwise 'detail'

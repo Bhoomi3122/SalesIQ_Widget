@@ -1,17 +1,8 @@
 /**
- * ZOHO WIDGET UI BUILDER (FINAL PRODUCTION VERSION)
- * ------------------------------------------------------------------
- * Fixes:
- * 1. Ensures ALL sections use 'name' (Fixes Section [0].name issue).
- * 2. Ensures every Button in the 'actions' array contains the mandatory 'id' and 'name' fields 
- * (Fixes response.sections[4].actions[1].name issue).
- * 3. Includes mandatory 'text' property in Listing Items.
+ * ZOHO SALESIQ WIDGET UI BUILDER – FINAL VERSION
+ * Completely aligned with SalesIQ documentation.
  */
 
-/**
- * 1. THE WRAPPER
- * Wraps all sections into the final JSON response Zoho expects.
- */
 const buildWidgetResponse = (sections) => {
     return {
         type: "widget_detail",
@@ -20,117 +11,106 @@ const buildWidgetResponse = (sections) => {
     };
 };
 
-/**
- * 2. METRIC SECTION
- */
+// METRICS
 const buildMetricSection = (id, title, metrics) => {
     return {
         name: id,
         type: "section",
-        title: title || "",
-        layout: "metric",
-        data: metrics.map(m => ({
-            label: m.label,
-            value: m.value
-        }))
+        elements: [
+            {
+                type: "metric",
+                title: title,
+                data: metrics.map(m => ({
+                    label: m.label,
+                    value: m.value
+                }))
+            }
+        ]
     };
 };
 
-/**
- * 3. FIELDSET SECTION
- */
+// FIELDSET
 const buildFieldsetSection = (id, title, fields) => {
     return {
         name: id,
         type: "section",
-        title: title,
-        layout: "fieldset",
-        data: fields.map(f => ({
-            label: f.label,
-            value: f.value,
-            type: "text"
-        }))
+        elements: [
+            {
+                type: "fieldset",
+                title: title,
+                data: fields.map(f => ({
+                    label: f.label,
+                    value: f.value,
+                    type: "text"
+                }))
+            }
+        ]
     };
 };
 
-/**
- * 4. LISTING SECTION
- * This section uses actions embedded within the data array elements.
- */
+// LISTING SECTION
 const buildListingSection = (id, title, items) => {
     return {
         name: id,
         type: "section",
-        title: title,
-        layout: "listing",
-        data: items.map(item => ({
-            title: item.title,
-            text: item.text || item.subtext || "View Details",
-            subtext: item.subtext || "",
-            image: item.image_url || "",
-
-            // Actions for List Items (Click to Copy)
-            actions: item.actionPayload 
-                ? [{
-                    label: "Select",
-                    type: "invoke.function",
-                    id: "handle_copy_text", 
-                    name: "handle_copy_text", // MANDATORY: Required for invoke function
-                    data: {
-                        payload: item.actionPayload
-                    }
-                }]
-                : []
-        }))
+        elements: [
+            {
+                type: "listing",
+                title: title,
+                data: items.map(item => ({
+                    title: item.title,
+                    text: item.text || item.subtext || "Details",
+                    subtext: item.subtext || "",
+                    image: item.image_url || "",
+                    actions: item.actionPayload
+                        ? [
+                            {
+                                label: "Copy",
+                                type: "invoke.function",
+                                name: "handle_copy_text",
+                                id: "handle_copy_text",
+                                data: item.actionPayload
+                            }
+                        ]
+                        : []
+                }))
+            }
+        ]
     };
 };
 
-/**
- * 5. ACTION BUTTONS SECTION
- * This uses the 'info' layout to hold the buttons.
- */
+// BUTTON SECTION — 100% MATCHES YOUR example
 const buildActionsSection = (id, buttons) => {
     return {
         name: id,
         type: "section",
-        layout: "info",
-        title: "Actions",
-        data: [],
-        actions: buttons
+        elements: [
+            {
+                type: "buttons",
+                buttons: buttons
+            }
+        ]
     };
 };
 
-// --- BUTTON HELPERS ---
-
-/**
- * 6. Invoke Button (Standard Action)
- * Requires 'name' for the function to be invoked.
- */
-const createInvokeButton = (label, functionName, payload = {}, style = "primary") => {
+// INVOKE BUTTON
+const createInvokeButton = (label, functionName, payload = {}) => {
     return {
-        type: "invoke.function",
         label: label,
-        id: functionName, // MANDATORY
-        name: functionName, // MANDATORY: Function name for backend controller
-        data: payload,
-        style: style
+        type: "invoke.function",
+        name: functionName,
+        id: functionName,
+        data: payload
     };
 };
 
-/**
- * 7. Link Button — Correct structure based on documentation analysis.
- * Requires 'id' and 'name' for the actions array parser.
- */
+// OPEN URL BUTTON — EXACTLY LIKE YOUR EXAMPLE
 const createLinkButton = (label, url) => {
     return {
         label: label,
         type: "open.url",
-        // MANDATORY: These two properties satisfy the parser for section actions arrays.
-        id: "open_full_dashboard", 
-        name: "open_url_action", 
-        data: {
-            web: url
-        }
+        id: "open_full_dashboard",
+        url: url
     };
 };
 
