@@ -73,11 +73,13 @@ const buildActionsSection = (id, buttons) => {
     return {
         name: id,
         type: "section",
-        layout: "info",
-        title: "actions",
-        actions: buttons
+        title: "Actions",
+        layout: "actions",   // Supported layout for buttons
+        data: [],            // ✔ Mandatory (Zoho requires it)
+        actions: buttons     // ✔ Where your invoke/link buttons go
     };
 };
+
 
 const createInvokeButton = (label, functionName, payload = {}, style = "primary") => {
     return {
