@@ -205,7 +205,7 @@ router.post('/zoho-widget', async (req, res) => {
         // --- SECTION 5: ACTIONS ---
         const actions = [
             ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
-            ui.createLinkButton("Open Full Dashboard", `https://omnicom-frontend.vercel.app/dashboard?chatId=${chatId}&email=${email}`)
+            ui.createLinkButton("Open Full Dashboard", `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`)
         ];
         const actionSection = ui.buildActionsSection("global_actions", actions);
 
