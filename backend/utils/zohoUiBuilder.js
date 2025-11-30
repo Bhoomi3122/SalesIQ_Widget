@@ -2,8 +2,10 @@
  * ZOHO WIDGET UI BUILDER (FINAL PRODUCTION VERSION)
  * ------------------------------------------------------------------
  * Fixes:
- * 1. Ensures ALL sections use 'name'.
- * 2. Ensures Link Button provides the MANDATORY 'name' field, resolving the final UI error.
+ * 1. Ensures ALL sections use 'name' (Fixes Section [0].name issue).
+ * 2. Ensures every Button in the 'actions' array contains the mandatory 'id' and 'name' fields 
+ * (Fixes response.sections[4].actions[1].name issue).
+ * 3. Includes mandatory 'text' property in Listing Items.
  */
 
 /**
@@ -53,7 +55,7 @@ const buildFieldsetSection = (id, title, fields) => {
 
 /**
  * 4. LISTING SECTION
- * Note: Listing section buttons use 'id' as the unique key, as per the documentation's example structure.
+ * This section uses actions embedded within the data array elements.
  */
 const buildListingSection = (id, title, items) => {
     return {
@@ -67,13 +69,14 @@ const buildListingSection = (id, title, items) => {
             subtext: item.subtext || "",
             image: item.image_url || "",
 
+            // Actions for List Items (Click to Copy)
             actions: item.actionPayload 
                 ? [{
                     label: "Select",
                     type: "invoke.function",
-                    id: "handle_copy_text", // Unique ID for this button instance
+                    id: "handle_copy_text", 
+                    name: "handle_copy_text", // MANDATORY: Required for invoke function
                     data: {
-                        name: "handle_copy_text", 
                         payload: item.actionPayload
                     }
                 }]
@@ -84,12 +87,13 @@ const buildListingSection = (id, title, items) => {
 
 /**
  * 5. ACTION BUTTONS SECTION
+ * This uses the 'info' layout to hold the buttons.
  */
 const buildActionsSection = (id, buttons) => {
     return {
         name: id,
         type: "section",
-        layout: "info", // Correct layout for buttons array
+        layout: "info",
         title: "Actions",
         data: [],
         actions: buttons
@@ -106,6 +110,7 @@ const createInvokeButton = (label, functionName, payload = {}, style = "primary"
     return {
         type: "invoke.function",
         label: label,
+        id: functionName, // MANDATORY
         name: functionName, // MANDATORY: Function name for backend controller
         data: payload,
         style: style
@@ -113,21 +118,18 @@ const createInvokeButton = (label, functionName, payload = {}, style = "primary"
 };
 
 /**
- * 7. Link Button — CRITICAL FIX: Add mandatory 'id' AND 'name' for reliability.
- * Note: open.url actions typically require the 'data' structure shown below.
+ * 7. Link Button — Correct structure based on documentation analysis.
+ * Requires 'id' and 'name' for the actions array parser.
  */
 const createLinkButton = (label, url) => {
     return {
         label: label,
         type: "open.url",
-        // CRITICAL FIX: Adding 'id' and 'name' which is required for items in the section actions array.
+        // MANDATORY: These two properties satisfy the parser for section actions arrays.
         id: "open_full_dashboard", 
-        name: "open_url_action", // MANDATORY: This is what the action handler looks for!
+        name: "open_url_action", 
         data: {
-            web: url,
-            windows: url,
-            iOS: url,
-            android: url
+            web: url
         }
     };
 };

@@ -1,11 +1,11 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 
-const ecommerceManager = require("../services/ecommerceManager");
-const aiService = require("../services/aiService");
-const recommendationService = require("../services/recommendationService");
-const ui = require("../utils/zohoUiBuilder");
-const InteractionLog = require("../models/InteractionLog");
+const ecommerceManager = require('../services/ecommerceManager');
+const aiService = require('../services/aiService');
+const recommendationService = require('../services/recommendationService');
+const ui = require('../utils/zohoUiBuilder');
+const InteractionLog = require('../models/InteractionLog');
 
 // =======================
 // CLEAN TEXT HELPER
@@ -52,94 +52,82 @@ const extractContext = (payload) => {
 router.post("/zoho-widget", async (req, res) => {
     const startTime = Date.now();
 
-    console.log("📦 FULL RAW ZOHO PAYLOAD:");
-    console.log(JSON.stringify(req.body, null, 2));
+    // console.log("📦 FULL RAW ZOHO PAYLOAD:");
+    // console.log(JSON.stringify(req.body, null, 2));
 
     const { email, chatId, message } = extractContext(req.body);
-    const handlerType = req.body.handler || (req.body.action ? "action" : "detail");
+    // Determine handler type: 'action' if action name exists, otherwise 'detail'
+    const handlerType = req.body.action?.name || req.body.name ? "action" : "detail";
 
-    console.log(
-        `🔔 Webhook Processing: ${handlerType} | Chat: ${chatId} | Visitor: ${email}`
-    );
+    console.log(`🔔 Webhook Processing: ${handlerType} | Chat: ${chatId} | Visitor: ${email}`);
 
     try {
         // ============================================================
         // CASE 1 — ACTION HANDLER
         // ============================================================
         if (handlerType === "action") {
-            console.log("\n============================");
+            const actionName = req.body.action?.name || req.body.name;
+            const actionData = req.body.action?.data || req.body.data || {};
+            
+            console.log(`\n============================`);
             console.log("🔥 ACTION HANDLER TRIGGERED");
             console.log("============================\n");
-
-            const actionId = req.body.action?.id;
-            const actionData = req.body.action?.data || {};
-
-            console.log("🎯 ACTION ID:", actionId);
+            console.log("🎯 ACTION ID:", actionName);
             console.log("📦 ACTION DATA:", JSON.stringify(actionData, null, 2));
 
+
+            // 1. URL OPENING ACTION (Highest Priority Exit)
+            if (actionName === "open_url_action") {
+                // Log the action first
+                await InteractionLog.create({
+                    chatId,
+                    operatorEmail: req.body.operator?.email || "unknown",
+                    actionType: actionName,
+                    details: { input: actionData }
+                }).catch(e => console.error("⚠️ Interaction Log Failed:", e.message));
+
+                // FIX: Return silent 200 OK status immediately. This prevents the Zoho UI 
+                // from overriding the client-side URL opening with a banner.
+                return res.status(200).send({ message: "URL command acknowledged." });
+            }
+
+            // --- Log all other actions before processing ---
             await InteractionLog.create({
                 chatId,
                 operatorEmail: req.body.operator?.email || "unknown",
-                actionType: actionId,
+                actionType: actionName,
                 details: { input: actionData }
-            }).catch((err) =>
-                console.error("⚠️ Interaction Log Failed:", err.message)
-            );
+            }).catch(e => console.error("⚠️ Interaction Log Failed:", e.message));
 
-            // ============================================================
-            // 🔥 OPEN URL BUTTON HANDLER
-            // (from createLinkButton → id = "open_dashboard")
-            // ============================================================
-            if (actionId === "open_dashboard") {
-                console.log("\n🚨 open_dashboard BUTTON CLICKED");
-                console.log("🔍 Raw action data:", actionData);
-
-                const url = actionData.web; // correct Zoho field
-                const fallback = `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`;
-
-                const finalUrl = url || fallback;
-
-                console.log("🌐 URL FROM ZOHO:", url);
-                console.log("🌐 USING FINAL URL:", finalUrl);
-
-                return res.json({
-                    type: "open_url",
-                    url: finalUrl
-                });
-            }
-
-            // ============================================================
-            // SMART REPLY — COPY TEXT
-            // ID = "handle_copy_text"
-            // ============================================================
-            if (actionId === "handle_copy_text") {
-                const replyText = actionData.payload?.text;
-                console.log("✍ SMART REPLY CLICKED:", replyText);
-
+            // 2. TEXT INJECTION ACTION
+            if (actionName === "handle_copy_text") {
+                const replyText = actionData.payload?.text || actionData.text;
                 return res.json({
                     type: "post_message",
                     text: replyText
                 });
             }
-
-            // ============================================================
-            // REFRESH BUTTON HANDLER
-            // ============================================================
-            if (actionId === "refresh_widget") {
-                console.log("🔄 Refresh widget triggered");
+            
+            // 3. REFRESH WIDGET ACTION
+            else if (actionName === "refresh_widget") {
+                // Fall through to Detail Handler Logic below to rebuild the UI
+                console.log("🔄 Refreshing Widget Data...");
             }
-
-            console.log("ℹ️ Unknown action, returning banner");
-            return res.json({
-                type: "banner",
-                status: "success",
-                text: `Action ${actionId} handled.`
-            });
+            
+            // 4. DEFAULT FALLBACK
+            else {
+                return res.json({
+                    type: "banner",
+                    text: `Action ${actionName} handled.`,
+                    status: "success"
+                });
+            }
         }
 
         // ============================================================
-        // CASE 2 — UI RENDER
+        // CASE 2 — UI RENDER (DETAIL HANDLER)
         // ============================================================
+        
         console.log("📥 Loading visitor dashboard UI...");
 
         const [profile, orders, sentiment, smartReplies, recommendations] =
@@ -170,7 +158,7 @@ router.post("/zoho-widget", async (req, res) => {
             orders?.map((o) => ({
                 title: `Order ${o.name}`,
                 text: `${o.date.substring(0, 10)} | ${o.status.toUpperCase()}`,
-                subtext: o.items || "",
+                subtext: o.items || "No items",
                 image_url: "https://img.icons8.com/ios-glyphs/60/000000/box.png",
                 actionPayload: { text: `Order ID: ${o.name}` }
             })) || []
@@ -188,6 +176,11 @@ router.post("/zoho-widget", async (req, res) => {
             }))
         );
 
+        // Ensure actions are named correctly for copy/paste
+        aiSection.data.forEach(item => {
+            if(item.actions && item.actions.length > 0) item.actions[0].name = "handle_copy_text";
+        });
+        
         const recSection = ui.buildListingSection(
             "recommendations",
             "UPSELL OPPORTUNITIES",
@@ -200,8 +193,14 @@ router.post("/zoho-widget", async (req, res) => {
             }))
         );
 
+        // Ensure actions are named correctly for copy/paste
+        recSection.data.forEach(item => {
+            if(item.actions && item.actions.length > 0) item.actions[0].name = "handle_copy_text";
+        });
+
         const actions = [
-            ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}),
+            ui.createInvokeButton("Refresh Analysis", "refresh_widget", {}, "primary"),
+            ui.createInvokeButton("Reset Session (Fix Glitch)", "reset_session", {}, "danger"),
             ui.createLinkButton(
                 "Open Full Dashboard",
                 `https://sales-iq-widget.vercel.app/dashboard?chatId=${chatId}&email=${email}`
@@ -223,6 +222,7 @@ router.post("/zoho-widget", async (req, res) => {
 
         console.log(`✅ Widget UI Built in ${Date.now() - startTime}ms`);
         return res.json(finalResponse);
+
     } catch (err) {
         console.error("❌ Widget Error:", err);
         return res.json(
