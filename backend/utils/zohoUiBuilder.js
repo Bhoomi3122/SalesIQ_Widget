@@ -59,11 +59,12 @@ const buildListingSection = (id, title, items) => {
             text: item.text || item.subtext || "View Details",
             subtext: item.subtext || "",
             image: item.image_url || "",
-            action: item.actionPayload ? {
+            actions: item.actionPayload ? [{
                 type: "invoke.function",
-                name: "handle_list_click",
+                name: "handle_copy_text",
                 data: item.actionPayload
-            } : null
+            }] : []
+
         }))
     };
 };
